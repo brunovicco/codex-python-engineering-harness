@@ -1,0 +1,63 @@
+[project]
+name = "{{PROJECT_NAME}}"
+version = "0.1.0"
+description = "Virtual Python workspace generated from the Python engineering harness"
+requires-python = ">={{PYTHON_VERSION}},<3.15"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "bandit[toml]>=1.8",
+    "mypy>=1.16",
+    "pip-audit>=2.9",
+    "pytest>=8.4",
+    "ruff>=0.12",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = []
+
+[tool.ruff]
+target-version = "{{RUFF_TARGET_VERSION}}"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF", "ANN", "D", "S"]
+ignore = ["ANN401", "D203", "D213"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/*.py" = ["D", "S101", "ANN"]
+"scripts/**/*.py" = ["D"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.mypy]
+python_version = "{{PYTHON_VERSION}}"
+strict = true
+warn_unused_configs = true
+warn_unused_ignores = true
+show_error_codes = true
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = []
+
+[tool.engineering-harness.quality]
+source-roots = ["packages/*/src", "services/*/src"]
+test-roots = ["packages/*/tests", "services/*/tests"]
+
+[tool.engineering-harness.architecture]
+source-roots = ["packages/*/src", "services/*/src"]
+clean-architecture = false
+
+# Add package policies as needed. Example:
+# [[tool.engineering-harness.architecture.boundaries]]
+# path = "packages/example/src/example"
+# allowed-imports = ["stdlib", "example"]
+# deny-dynamic-imports = true

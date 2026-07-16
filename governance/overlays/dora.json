@@ -1,0 +1,11 @@
+{
+  "framework_versions": {
+    "dora": "eu-2022-2554"
+  },
+  "name": "dora",
+  "required_controls": [
+    "CPH-TPR-001",
+    "CPH-RES-001"
+  ],
+  "version": "2026.1"
+}

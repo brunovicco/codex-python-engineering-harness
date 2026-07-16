@@ -1,0 +1,11 @@
+{
+  "framework_versions": {
+    "iso-iec-42001": "2023"
+  },
+  "name": "iso-iec-42001",
+  "required_controls": [
+    "CPH-AIMS-001",
+    "CPH-AIR-001"
+  ],
+  "version": "2026.1"
+}

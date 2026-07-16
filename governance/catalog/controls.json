@@ -1,0 +1,389 @@
+{
+  "controls": [
+    {
+      "assurance": {
+        "checks": [
+          "scripts/quality_gate.py"
+        ],
+        "frequency": "pull-request",
+        "type": "automated"
+      },
+      "category": "secure-development",
+      "description": "A single deterministic gate runs quality, security, architecture, dependency, MCP, and governance checks.",
+      "id": "CPH-SDLC-001",
+      "mappings": [
+        {
+          "coverage": "supports",
+          "framework": "cis-controls",
+          "reference": "CIS-16",
+          "version": "8.1"
+        },
+        {
+          "coverage": "partial",
+          "framework": "nist-sp-800-53",
+          "reference": "SA-11",
+          "version": "rev5-release-5.2.0"
+        }
+      ],
+      "ownership": {
+        "control_owner": "engineering-governance",
+        "evidence_owner": "devsecops",
+        "implementation_owner": "developer-platform"
+      },
+      "status": "implemented",
+      "title": "Deterministic engineering quality gate"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "scripts/validate_architecture.py"
+        ],
+        "frequency": "pull-request",
+        "type": "automated"
+      },
+      "category": "architecture",
+      "description": "Import boundaries and configured source roots are validated without importing application code.",
+      "id": "CPH-ARC-001",
+      "mappings": [
+        {
+          "coverage": "supports",
+          "framework": "cis-controls",
+          "reference": "CIS-16",
+          "version": "8.1"
+        },
+        {
+          "coverage": "partial",
+          "framework": "nist-sp-800-53",
+          "reference": "SA-15",
+          "version": "rev5-release-5.2.0"
+        }
+      ],
+      "ownership": {
+        "control_owner": "software-architecture",
+        "evidence_owner": "devsecops",
+        "implementation_owner": "application-engineering"
+      },
+      "status": "implemented",
+      "title": "Automated architecture boundary validation"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "scripts/quality_gate.py"
+        ],
+        "frequency": "pull-request",
+        "type": "automated"
+      },
+      "category": "supply-chain",
+      "description": "Lockfile consistency, dependency vulnerability auditing, and review requirements constrain software supply-chain risk.",
+      "id": "CPH-SCM-001",
+      "mappings": [
+        {
+          "coverage": "supports",
+          "framework": "cis-controls",
+          "reference": "CIS-2",
+          "version": "8.1"
+        },
+        {
+          "coverage": "partial",
+          "framework": "nist-sp-800-53",
+          "reference": "SR-11",
+          "version": "rev5-release-5.2.0"
+        },
+        {
+          "coverage": "supports",
+          "framework": "owasp-llm",
+          "reference": "LLM03",
+          "version": "2025"
+        }
+      ],
+      "ownership": {
+        "control_owner": "product-security",
+        "evidence_owner": "devsecops",
+        "implementation_owner": "developer-platform"
+      },
+      "status": "implemented",
+      "title": "Dependency and supply-chain assurance"
+    },
+    {
+      "assurance": {
+        "checks": [
+          ".codex/hooks/scan_worktree.py",
+          ".codex/hooks/validate_bash.py"
+        ],
+        "frequency": "continuous",
+        "type": "automated"
+      },
+      "category": "data-protection",
+      "description": "Lifecycle hooks and repository policy block sensitive paths and scan changed content for secrets.",
+      "id": "CPH-SEC-001",
+      "mappings": [
+        {
+          "coverage": "supports",
+          "framework": "cis-controls",
+          "reference": "CIS-3",
+          "version": "8.1"
+        },
+        {
+          "coverage": "partial",
+          "framework": "nist-sp-800-53",
+          "reference": "AC-6",
+          "version": "rev5-release-5.2.0"
+        },
+        {
+          "coverage": "supports",
+          "framework": "owasp-llm",
+          "reference": "LLM02",
+          "version": "2025"
+        }
+      ],
+      "ownership": {
+        "control_owner": "product-security",
+        "evidence_owner": "devsecops",
+        "implementation_owner": "developer-platform"
+      },
+      "status": "implemented",
+      "title": "Secret and sensitive-data protection"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "scripts/validate_mcp_config.py"
+        ],
+        "frequency": "pull-request",
+        "type": "automated"
+      },
+      "category": "tool-security",
+      "description": "Native MCP configuration is checked for transport security, credential indirection, pinning, and bounded timeouts.",
+      "id": "CPH-MCP-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "nist-ai-rmf",
+          "reference": "MANAGE",
+          "version": "1.0"
+        },
+        {
+          "coverage": "supports",
+          "framework": "owasp-agentic",
+          "reference": "ASI04",
+          "version": "2026"
+        },
+        {
+          "coverage": "supports",
+          "framework": "mitre-atlas",
+          "reference": "AI Agent Tool Poisoning",
+          "version": "retrieved-2026-07-16"
+        }
+      ],
+      "ownership": {
+        "control_owner": "ai-platform-security",
+        "evidence_owner": "devsecops",
+        "implementation_owner": "developer-platform"
+      },
+      "status": "implemented",
+      "title": "MCP trust-boundary validation"
+    },
+    {
+      "assurance": {
+        "checks": [
+          ".codex/hooks/guard_mcp.py"
+        ],
+        "frequency": "continuous",
+        "type": "automated"
+      },
+      "category": "agentic-security",
+      "description": "State-changing tool actions require approval and production mutations are denied by policy.",
+      "id": "CPH-AGT-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "nist-ai-rmf",
+          "reference": "MANAGE",
+          "version": "1.0"
+        },
+        {
+          "coverage": "supports",
+          "framework": "owasp-llm",
+          "reference": "LLM06",
+          "version": "2025"
+        },
+        {
+          "coverage": "supports",
+          "framework": "owasp-agentic",
+          "reference": "ASI02",
+          "version": "2026"
+        }
+      ],
+      "ownership": {
+        "control_owner": "ai-platform-security",
+        "evidence_owner": "devsecops",
+        "implementation_owner": "developer-platform"
+      },
+      "status": "implemented",
+      "title": "Human approval for high-impact tool actions"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "AGENTS.md"
+        ],
+        "frequency": "release",
+        "type": "manual"
+      },
+      "category": "observability",
+      "description": "AI observability is metadata-only by default and excludes prompts, responses, credentials, and personal data.",
+      "id": "CPH-OBS-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "nist-ai-rmf",
+          "reference": "MEASURE",
+          "version": "1.0"
+        },
+        {
+          "coverage": "supports",
+          "framework": "owasp-llm",
+          "reference": "LLM02",
+          "version": "2025"
+        }
+      ],
+      "ownership": {
+        "control_owner": "privacy-engineering",
+        "evidence_owner": "service-owner",
+        "implementation_owner": "application-engineering"
+      },
+      "status": "implemented",
+      "title": "Metadata-only AI observability"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "governance/inventories/ai-systems.json",
+          "governance/assessments/ai-impact-assessment.md"
+        ],
+        "frequency": "release",
+        "type": "manual"
+      },
+      "category": "ai-risk-management",
+      "description": "AI systems and their intended use, autonomy, oversight, and impacts are documented and reviewed.",
+      "id": "CPH-AIR-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "nist-ai-rmf",
+          "reference": "GOVERN; MAP",
+          "version": "1.0"
+        },
+        {
+          "coverage": "partial",
+          "framework": "iso-iec-42001",
+          "reference": "AI risk and impact assessment",
+          "version": "2023"
+        }
+      ],
+      "ownership": {
+        "control_owner": "responsible-ai",
+        "evidence_owner": "service-owner",
+        "implementation_owner": "application-engineering"
+      },
+      "status": "partially_implemented",
+      "title": "AI system inventory and impact assessment"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "governance/inventories/third-parties.json"
+        ],
+        "frequency": "quarterly",
+        "type": "manual"
+      },
+      "category": "third-party-risk",
+      "description": "Critical ICT and AI providers are inventoried with ownership, criticality, data constraints, and review dates.",
+      "id": "CPH-TPR-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "dora",
+          "reference": "ICT third-party risk",
+          "version": "eu-2022-2554"
+        },
+        {
+          "coverage": "partial",
+          "framework": "nist-sp-800-53",
+          "reference": "SR-6",
+          "version": "rev5-release-5.2.0"
+        }
+      ],
+      "ownership": {
+        "control_owner": "third-party-risk",
+        "evidence_owner": "service-owner",
+        "implementation_owner": "vendor-management"
+      },
+      "status": "partially_implemented",
+      "title": "Critical provider inventory"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "governance/assessments/resilience-test-plan.md",
+          "governance/assessments/provider-exit-strategy.md"
+        ],
+        "frequency": "annual",
+        "type": "manual"
+      },
+      "category": "operational-resilience",
+      "description": "Risk-based resilience testing and provider exit arrangements are documented and assigned.",
+      "id": "CPH-RES-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "dora",
+          "reference": "Digital operational resilience testing",
+          "version": "eu-2022-2554"
+        },
+        {
+          "coverage": "partial",
+          "framework": "nist-sp-800-53",
+          "reference": "CP-4; CP-10",
+          "version": "rev5-release-5.2.0"
+        }
+      ],
+      "ownership": {
+        "control_owner": "operational-resilience",
+        "evidence_owner": "service-owner",
+        "implementation_owner": "site-reliability-engineering"
+      },
+      "status": "partially_implemented",
+      "title": "Resilience testing and provider exit planning"
+    },
+    {
+      "assurance": {
+        "checks": [
+          "governance/scope.json"
+        ],
+        "frequency": "annual",
+        "type": "manual"
+      },
+      "category": "ai-management-system",
+      "description": "The project records its AI management scope, accountable roles, objectives, and inherited organizational responsibilities.",
+      "id": "CPH-AIMS-001",
+      "mappings": [
+        {
+          "coverage": "partial",
+          "framework": "iso-iec-42001",
+          "reference": "AIMS scope and responsibilities",
+          "version": "2023"
+        }
+      ],
+      "ownership": {
+        "control_owner": "responsible-ai",
+        "evidence_owner": "service-owner",
+        "implementation_owner": "management-system-owner"
+      },
+      "status": "partially_implemented",
+      "title": "AI management system scope and accountability"
+    }
+  ],
+  "version": "2026.1"
+}

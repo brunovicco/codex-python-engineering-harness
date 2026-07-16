@@ -1,0 +1,14 @@
+{
+  "framework_versions": {
+    "nist-sp-800-53": "rev5-release-5.2.0"
+  },
+  "name": "nist-sp-800-53",
+  "required_controls": [
+    "CPH-SDLC-001",
+    "CPH-ARC-001",
+    "CPH-SCM-001",
+    "CPH-SEC-001",
+    "CPH-RES-001"
+  ],
+  "version": "2026.1"
+}

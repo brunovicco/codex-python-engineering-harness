@@ -1,0 +1,94 @@
+name: harness-quality
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.28"
+
+      - name: Run harness regression tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile distributed Python
+        run: >-
+          python -m compileall -q bootstrap.py template/.codex/hooks template/scripts
+          plugins/python-engineering-harness/scripts
+
+      - name: Lint harness distribution
+        run: >-
+          uvx --from ruff==0.15.20 ruff check --isolated bootstrap.py tests
+          template/.codex/hooks template/scripts plugins/python-engineering-harness/scripts
+
+      - name: Reject whitespace errors
+        run: git diff --check
+
+  generated-profiles:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+        profile: [service, library, workspace]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.28"
+
+      - name: Render profile
+        run: >-
+          python3 bootstrap.py --name profile-${{ matrix.profile }}
+          --package profile_${{ matrix.profile }} --target ../generated
+          --profile ${{ matrix.profile }} --python ${{ matrix.python-version }}
+          --git-init --lock
+
+      - name: Check harness metadata and branch alignment
+        run: python3 bootstrap.py --target ../generated --check
+
+      - name: Frozen sync
+        working-directory: ../generated
+        run: uv sync --frozen --all-packages --all-groups
+
+      - name: Run profile-owned quality gate
+        working-directory: ../generated
+        run: uv run python scripts/quality_gate.py
+
+      - name: Build service runtime image
+        if: matrix.profile == 'service'
+        working-directory: ../generated
+        run: docker build -t harness-profile-service .
+
+      - name: Assert non-service profiles have no runtime Dockerfile
+        if: matrix.profile != 'service'
+        working-directory: ../generated
+        run: test ! -e Dockerfile

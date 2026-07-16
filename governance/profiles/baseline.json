@@ -1,0 +1,15 @@
+{
+  "framework_versions": {
+    "cis-controls": "8.1",
+    "nist-sp-800-53": "rev5-release-5.2.0"
+  },
+  "name": "baseline",
+  "required_controls": [
+    "CPH-SDLC-001",
+    "CPH-ARC-001",
+    "CPH-SCM-001",
+    "CPH-SEC-001",
+    "CPH-MCP-001"
+  ],
+  "version": "2026.1"
+}
