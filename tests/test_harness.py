@@ -771,6 +771,16 @@ class HookTests(unittest.TestCase):
 class DistributionTests(unittest.TestCase):
     """Keep duplicated security code and machine-readable files valid."""
 
+    def test_service_matrix_installs_observability_extra(self) -> None:
+        """Keep service-only dependencies available to the generated-profile gate."""
+        workflow = (ROOT / ".github/workflows/harness-quality.yml").read_text(encoding="utf-8")
+        self.assertIn("if: matrix.profile == 'service'", workflow)
+        self.assertIn(
+            "uv sync --frozen --all-packages --all-groups --extra observability",
+            workflow,
+        )
+        self.assertIn("if: matrix.profile != 'service'", workflow)
+
     def test_governance_json_documents_parse(self) -> None:
         paths = [
             *sorted((ROOT / "governance").rglob("*.json")),
