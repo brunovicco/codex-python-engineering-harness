@@ -179,6 +179,15 @@ class BootstrapTests(unittest.TestCase):
             service = root / "service"
             self.assertTrue((service / "Dockerfile").is_file())
             self.assertIn("structlog", (service / "pyproject.toml").read_text(encoding="utf-8"))
+            self.assertIn(
+                "opentelemetry-sdk",
+                (service / "pyproject.toml").read_text(encoding="utf-8"),
+            )
+            self.assertTrue((service / "tests/unit/test_observability.py").is_file())
+            self.assertIn(
+                "--extra observability",
+                (service / ".github/workflows/quality.yml").read_text(encoding="utf-8"),
+            )
 
             library = root / "library"
             self.assertFalse((library / "Dockerfile").exists())
@@ -186,6 +195,13 @@ class BootstrapTests(unittest.TestCase):
             self.assertNotIn("pydantic", library_project)
             self.assertNotIn("structlog", library_project)
             self.assertNotIn("langfuse", library_project)
+            self.assertNotIn("opentelemetry", library_project)
+            self.assertFalse((library / "tests/unit/test_observability.py").exists())
+            library_workflow = (library / ".github/workflows/quality.yml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("uv sync --frozen --all-groups", library_workflow)
+            self.assertNotIn("observability", library_workflow)
             library_text = "\n".join(
                 path.read_text(encoding="utf-8")
                 for path in library.rglob("*")
@@ -210,6 +226,44 @@ class BootstrapTests(unittest.TestCase):
             ).lower()
             self.assertNotIn("langfuse", workspace_text)
             self.assertNotIn("mypy src tests", workspace_text)
+            workspace_workflow = (workspace / ".github/workflows/quality.yml").read_text(
+                encoding="utf-8"
+            )
+            self.assertIn("uv sync --frozen --all-packages --all-groups", workspace_workflow)
+            self.assertNotIn("observability", workspace_workflow)
+
+            for profile in ("service", "library", "workspace"):
+                governed = root / f"{profile}-agentic"
+                self.assertEqual(
+                    bootstrap.main(
+                        [
+                            "--name",
+                            f"sample-{profile}-agentic",
+                            "--package",
+                            f"sample_{profile}_agentic",
+                            "--target",
+                            str(governed),
+                            "--profile",
+                            profile,
+                            "--governance-profile",
+                            "agentic",
+                        ]
+                    ),
+                    0,
+                )
+                catalog = json.loads(
+                    (governed / "governance/control-catalog.json").read_text(encoding="utf-8")
+                )
+                observability = next(
+                    control for control in catalog["controls"] if control["id"] == "CPH-OBS-001"
+                )
+                checks = observability["assurance"]["checks"]
+                if profile == "service":
+                    self.assertIn("tests/unit/test_observability.py", checks)
+                    self.assertIn("tests/unit/test_logging.py", checks)
+                else:
+                    self.assertNotIn("tests/unit/test_observability.py", checks)
+                    self.assertNotIn("tests/unit/test_logging.py", checks)
 
     def test_governance_profiles_and_overlays_render_versioned_snapshots(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

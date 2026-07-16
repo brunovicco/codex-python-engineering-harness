@@ -5,6 +5,9 @@ import logging
 from collections.abc import Iterator
 
 import pytest
+import structlog
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
 
 from {{PACKAGE_NAME}}.entrypoints.logging import (
     bind_correlation_id,
@@ -60,7 +63,7 @@ def test_clear_request_context_keeps_process_wide_fields(
     monkeypatch.setenv("LOG_FORMAT", "json")
     monkeypatch.setenv("LOG_LEVEL", "INFO")
     configure_logging(service="billing", environment="test", version="1.2.3")
-    bind_correlation_id("req-1", trace_id="trace-1")
+    bind_correlation_id("req-1")
 
     clear_request_context()
     logging.getLogger(__name__).info("after_clear")
@@ -69,3 +72,24 @@ def test_clear_request_context_keeps_process_wide_fields(
     assert payload["service"] == "billing"
     assert "correlation_id" not in payload
     assert "trace_id" not in payload
+
+
+def test_logs_include_only_valid_current_trace_context(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Valid current spans are correlated; the ambient no-span state is not."""
+    monkeypatch.setenv("LOG_FORMAT", "json")
+    configure_logging(service="billing", environment="test", version="1.2.3")
+    tracer = TracerProvider().get_tracer("test")
+
+    structlog.contextvars.bind_contextvars(trace_id="forged-trace", span_id="stale-span")
+    logging.getLogger(__name__).info("outside", extra={"trace_id": "forged-extra"})
+    with tracer.start_as_current_span("inside") as span:
+        logging.getLogger(__name__).info("inside")
+        context = span.get_span_context()
+
+    outside, inside = [json.loads(line) for line in capsys.readouterr().out.splitlines()]
+    assert "trace_id" not in outside
+    assert "span_id" not in outside
+    assert inside["trace_id"] == trace.format_trace_id(context.trace_id)
+    assert inside["span_id"] == trace.format_span_id(context.span_id)

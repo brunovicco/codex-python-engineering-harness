@@ -6,6 +6,15 @@
 uv sync --frozen --all-groups
 ```
 
+Service observability tests exercise the optional OpenTelemetry runtime without a collector:
+
+```bash
+uv sync --frozen --all-groups --extra observability
+uv run pytest tests/unit/test_observability.py tests/unit/test_logging.py
+```
+
+Tests use in-memory exporters or fakes. Do not point development or CI checks at a real backend.
+
 ## Run checks
 
 ```bash

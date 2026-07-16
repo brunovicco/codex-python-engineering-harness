@@ -15,6 +15,12 @@ dependencies = [
 tracing = [
     "langfuse>=3.0",
 ]
+# Vendor-neutral application traces; disabled unless an OTLP endpoint is configured.
+observability = [
+    "opentelemetry-api>=1.36",
+    "opentelemetry-exporter-otlp-proto-http>=1.36",
+    "opentelemetry-sdk>=1.36",
+]
 
 [dependency-groups]
 dev = [

@@ -1,5 +1,49 @@
 # LLM observability policy
 
+## Vendor-neutral application tracing
+
+The service profile also provides a separate OpenTelemetry trace foundation in
+`src/{{PACKAGE_NAME}}/adapters/observability.py`. Install it with
+`uv sync --extra observability`. It uses the OpenTelemetry API/SDK, `BatchSpanProcessor`, and the
+OTLP HTTP/protobuf exporter. This does not replace or alter the `LlmCallObserver` contract or the
+existing `tracing` extra described below.
+
+The lifecycle is disabled when `OTEL_SDK_DISABLED=true` or neither
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` nor `OTEL_EXPORTER_OTLP_ENDPOINT` is set. In either case it
+does not construct an exporter, start a worker, or attempt a network connection. When enabled,
+instantiate `TelemetryLifecycle` at process startup, use its returned `tracer`, and call its
+bounded `force_flush()` and `shutdown()` methods during graceful termination. Exporter setup,
+flush, shutdown, and asynchronous export failures are isolated from business operations.
+
+Resource attributes are limited to `service.name`, `service.version`, and
+`deployment.environment.name`. `OTEL_SERVICE_NAME` and safe values for those keys in
+`OTEL_RESOURCE_ATTRIBUTES` are supported; all other resource keys are discarded. The custom span
+attribute helper likewise accepts only a small set of non-content keys and bounded scalar values.
+The lifecycle exposes `SafeTracer` and `SafeSpan` wrappers that apply the same policy to attributes
+provided during span creation or mutation. Unsafe operation and event names are replaced with
+stable redacted names; status descriptions and exception messages are not recorded. Never put
+prompts, responses, credentials, authorization headers, personal data, arbitrary URLs, tool
+output, or production payloads into spans.
+
+Use `inject_trace_context()` and `extract_trace_context()` at transport boundaries. They use only
+W3C `traceparent`/`tracestate`; baggage is intentionally not propagated. Structured logs derive
+`trace_id` and `span_id` from a valid current span automatically and omit both otherwise.
+
+### OpenTelemetry configuration
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `OTEL_SDK_DISABLED` | no | `true` forces a network-silent no-op |
+| `OTEL_SERVICE_NAME` | no | Overrides the configured service name |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | one endpoint | Base OTLP HTTP endpoint |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | one endpoint | Trace-specific OTLP HTTP endpoint; takes precedence in the exporter |
+| `OTEL_RESOURCE_ATTRIBUTES` | no | Only the three approved resource keys are accepted |
+
+Tests use in-memory exporters and invalid placeholder endpoint names; they never require a
+collector, network access, credentials, or an external service.
+
+## Langfuse LLM tracing
+
 This project can optionally trace LLM calls (latency, token usage, cost, and model name) to
 Langfuse through `src/{{PACKAGE_NAME}}/adapters/tracing.py`. Structured application logging itself
 is always configured through `src/{{PACKAGE_NAME}}/entrypoints/logging.py` and is not part of this

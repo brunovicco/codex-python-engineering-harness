@@ -226,10 +226,13 @@
     {
       "assurance": {
         "checks": [
-          "AGENTS.md"
+          ".github/workflows/quality.yml",
+          "scripts/quality_gate.py",
+          "tests/unit/test_logging.py",
+          "tests/unit/test_observability.py"
         ],
-        "frequency": "release",
-        "type": "manual"
+        "frequency": "continuous",
+        "type": "automated"
       },
       "category": "observability",
       "description": "AI observability is metadata-only by default and excludes prompts, responses, credentials, and personal data.",
