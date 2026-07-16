@@ -2,9 +2,9 @@
 #
 # Build from the committed lock file and keep uv and build tools out of the runtime image.
 
-FROM python:{{PYTHON_VERSION}}-slim AS builder
+FROM python:{{PYTHON_VERSION}}-slim@{{PYTHON_IMAGE_DIGEST}} AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.11.28 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.28@sha256:0f36cb9361a3346885ca3677e3767016687b5a170c1a6b88465ec14aefec90aa /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -23,7 +23,7 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
-FROM python:{{PYTHON_VERSION}}-slim
+FROM python:{{PYTHON_VERSION}}-slim@{{PYTHON_IMAGE_DIGEST}}
 
 RUN groupadd --system app && useradd --system --gid app --no-create-home app
 

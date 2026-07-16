@@ -6,6 +6,7 @@ import contextlib
 import importlib.util
 import io
 import json
+import re
 import stat
 import subprocess
 import sys
@@ -25,6 +26,7 @@ VALUES = {
     "project_name": "test-service",
     "package_name": "test_service",
     "python_version": "3.13",
+    "python_image_digest": bootstrap.PYTHON_IMAGE_DIGESTS["3.13"],
     "ruff_target_version": "py313",
     "profile": "service",
     "governance_profile": "none",
@@ -67,6 +69,14 @@ class BootstrapTests(unittest.TestCase):
         for invalid in ("3.11", "3.15", "3.013", "4.0"):
             with self.subTest(invalid=invalid), self.assertRaises(ValueError):
                 bootstrap.normalize_python_version(invalid)
+
+    def test_supported_python_images_are_pinned_by_digest(self) -> None:
+        self.assertEqual(
+            set(bootstrap.PYTHON_IMAGE_DIGESTS),
+            {f"3.{minor}" for minor in bootstrap.SUPPORTED_PYTHON_MINORS},
+        )
+        for digest in bootstrap.PYTHON_IMAGE_DIGESTS.values():
+            self.assertRegex(digest, r"^sha256:[0-9a-f]{64}$")
 
     def test_python_keyword_is_not_a_package_name(self) -> None:
         with self.assertRaises(ValueError):
@@ -777,6 +787,25 @@ class DistributionTests(unittest.TestCase):
         self.assertIn("repository-quality:", workflow)
         self.assertIn("uv sync --frozen --all-groups", workflow)
         self.assertIn("uv run python scripts/quality_gate.py", workflow)
+
+    def test_distributed_actions_and_container_images_are_immutable(self) -> None:
+        """Require immutable references in repository-owned distributed automation."""
+        workflows = (
+            ROOT / ".github/workflows/harness-quality.yml",
+            ROOT / "template/.github/workflows/quality.yml",
+            ROOT / "profiles/library/.github/workflows/quality.yml",
+            ROOT / "profiles/workspace/.github/workflows/quality.yml",
+        )
+        mutable_action = re.compile(r"uses:\s+[^\s@]+@v\d+\s*$", re.MULTILINE)
+        for workflow in workflows:
+            with self.subTest(workflow=workflow):
+                self.assertIsNone(mutable_action.search(workflow.read_text(encoding="utf-8")))
+
+        dockerfile = (ROOT / "template/Dockerfile").read_text(encoding="utf-8")
+        self.assertEqual(
+            dockerfile.count("python:{{PYTHON_VERSION}}-slim@{{PYTHON_IMAGE_DIGEST}}"), 2
+        )
+        self.assertRegex(dockerfile, r"ghcr\.io/astral-sh/uv:[^\s@]+@sha256:[0-9a-f]{64}")
 
     def test_public_maintenance_contract_is_documented(self) -> None:
         """Keep security, upgrades, and independent artifact versions discoverable."""

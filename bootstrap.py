@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-HARNESS_VERSION = "1.2.0"
+HARNESS_VERSION = "1.2.1"
 DEFAULT_BRANCH = "main"
 PROFILES = ("service", "library", "workspace")
 GOVERNANCE_CATALOG_VERSION = "2026.1"
@@ -27,11 +27,17 @@ TOKENS = {
     "{{PROJECT_NAME}}": "project_name",
     "{{PACKAGE_NAME}}": "package_name",
     "{{PYTHON_VERSION}}": "python_version",
+    "{{PYTHON_IMAGE_DIGEST}}": "python_image_digest",
     "{{RUFF_TARGET_VERSION}}": "ruff_target_version",
     "{{PROFILE}}": "profile",
     "{{GOVERNANCE_PROFILE}}": "governance_profile",
 }
 SUPPORTED_PYTHON_MINORS = {12, 13, 14}
+PYTHON_IMAGE_DIGESTS = {
+    "3.12": "sha256:57cd7c3a7a273101a6485ba99423ee568157882804b1124b4dd04266317710de",
+    "3.13": "sha256:6771159cd4fa5d9bba1258caf0b82e6b73458c694d178ad97c5e925c2d0e1a91",
+    "3.14": "sha256:d3400aa122fa42cf0af0dbe8ec3091b047eac5c8f7e3539f7135e86d855dc015",
+}
 
 PROFILE_EXCLUDES: dict[str, tuple[str, ...]] = {
     "service": (),
@@ -669,6 +675,7 @@ def main(argv: list[str] | None = None) -> int:
         "project_name": args.name,
         "package_name": args.package,
         "python_version": python_version,
+        "python_image_digest": PYTHON_IMAGE_DIGESTS[python_version],
         "ruff_target_version": ruff_target_version,
         "profile": args.profile,
         "governance_profile": args.governance_profile,
