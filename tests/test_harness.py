@@ -771,6 +771,31 @@ class HookTests(unittest.TestCase):
 class DistributionTests(unittest.TestCase):
     """Keep duplicated security code and machine-readable files valid."""
 
+    def test_repository_quality_gate_is_enforced_in_ci(self) -> None:
+        """Keep the complete local gate represented in the required workflow."""
+        workflow = (ROOT / ".github/workflows/harness-quality.yml").read_text(encoding="utf-8")
+        self.assertIn("repository-quality:", workflow)
+        self.assertIn("uv sync --frozen --all-groups", workflow)
+        self.assertIn("uv run python scripts/quality_gate.py", workflow)
+
+    def test_public_maintenance_contract_is_documented(self) -> None:
+        """Keep security, upgrades, and independent artifact versions discoverable."""
+        required = (
+            "SECURITY.md",
+            "CHANGELOG.md",
+            "docs/UPGRADING.md",
+            "docs/VERSIONING.md",
+            ".github/dependabot.yml",
+        )
+        for relative in required:
+            with self.subTest(path=relative):
+                self.assertTrue((ROOT / relative).is_file())
+
+        security = (ROOT / "SECURITY.md").read_text(encoding="utf-8")
+        self.assertIn("not a sandbox", security)
+        versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
+        self.assertIn("independently versioned artifacts", versioning)
+
     def test_service_matrix_installs_observability_extra(self) -> None:
         """Keep service-only dependencies available to the generated-profile gate."""
         workflow = (ROOT / ".github/workflows/harness-quality.yml").read_text(encoding="utf-8")

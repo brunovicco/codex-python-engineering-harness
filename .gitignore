@@ -9,4 +9,11 @@ htmlcov/
 dist/
 build/
 build/governance-evidence/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
 .DS_Store

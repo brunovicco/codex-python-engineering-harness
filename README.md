@@ -23,6 +23,12 @@ Profiles:
 - `library`: reusable typed package without service/container assumptions.
 - `workspace`: virtual uv workspace root; it creates no artificial package or member.
 
+| Profile | Choose it for | Package created | Container and runtime boundaries |
+|---|---|---:|---:|
+| `service` | APIs, workers, agents, and deployable processes | Yes | Yes |
+| `library` | Reusable typed Python packages | Yes | No |
+| `workspace` | A multi-package repository whose members will be added later | No | No |
+
 The bootstrap also supports `--dry-run`, non-destructive `--merge`, and `--check`. Run
 `python bootstrap.py --help` for the complete interface.
 
@@ -43,6 +49,23 @@ python bootstrap.py \
 Governance profiles are `none`, `baseline`, `ai-assisted`, and `agentic`. Available overlays are
 `dora`, `iso-iec-42001`, and `nist-sp-800-53`. Framework mappings describe control support and do
 not claim organizational compliance or certification.
+
+## Five-minute evaluation
+
+Requirements: Python 3.12 or newer and `uv`.
+
+```bash
+target="$(mktemp -d)/harness-evaluation"
+python bootstrap.py --name evaluation --package evaluation --target "$target" --profile service
+cd "$target"
+uv sync --all-groups --extra observability
+uv run python scripts/quality_gate.py
+```
+
+Then inspect `AGENTS.md`, `.codex/config.toml`, `.codex/hooks.json`, `.agents/skills/`, and
+`docs/ARCHITECTURE.md`. This evaluation creates only a disposable local project and requires no
+credentials. Use the harness when you want an opinionated, repository-owned engineering baseline;
+do not use it when an existing project cannot adopt its uv workflow or architectural constraints.
 
 ## Generated project workflow
 
@@ -85,4 +108,6 @@ uv run python scripts/quality_gate.py
 ```
 
 See `VALIDATION.md` for the latest verification record and `SOURCES.md` for official OpenAI
-references used by this port.
+references used by this port. See `docs/VERSIONING.md` for artifact lifecycles,
+`docs/UPGRADING.md` for non-destructive upgrades, `CHANGELOG.md` for release history, and
+`SECURITY.md` for private vulnerability reporting.

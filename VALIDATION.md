@@ -1,12 +1,14 @@
 # Validation record
 
 Validated on 2026-07-16 (America/Sao_Paulo) with Python 3.12 for the harness and Python 3.13 for
-generated profiles.
+generated profiles. The source base was commit
+`1642fe05eda3c9b67e78a6d3a04e45b6055d509a`; the validation also includes the unreleased
+documentation, CI, and regression-test changes recorded in `CHANGELOG.md`.
 
 ## Results
 
 - Repository quality gate: passed.
-- Unit tests: 45 passed.
+- Unit tests: 48 passed.
 - Ruff lint and format: passed.
 - Strict Mypy: passed.
 - Bandit medium/high findings: none.
@@ -15,7 +17,7 @@ generated profiles.
 - Governance source catalog: passed; 11 controls, four capability profiles, and three overlays.
 - Governance regression tests: profile composition, duplicate-overlay rejection, untreated high
   risk, expired exception, and evidence-path validation passed.
-- Generated `service`: full gate passed; 12 tests; 96.67% coverage.
+- Generated `service`: full gate passed; 20 tests; 92.31% coverage.
 - Generated `library`: full gate passed; 1 test; 100% coverage.
 - Generated `workspace`: lock, lint, format, architecture, MCP, and dependency audit passed;
   package-root checks correctly skipped because the initial workspace has no artificial members.
