@@ -1,0 +1,21 @@
+{
+  "name": "python-engineering-harness",
+  "version": "1.0.0",
+  "description": "Reusable Codex-native Python engineering workflows and safety hooks",
+  "author": {
+    "name": "Python Engineering Harness maintainers"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Python Engineering Harness",
+    "shortDescription": "Python delivery, review, security, and quality workflows.",
+    "longDescription": "Reusable workflows and lifecycle safety checks for typed Python repositories.",
+    "developerName": "Python Engineering Harness maintainers",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "defaultPrompt": [
+      "Use Python Engineering Harness to implement this Python change with tests.",
+      "Use Python Engineering Harness to run and explain the project quality gate."
+    ]
+  }
+}

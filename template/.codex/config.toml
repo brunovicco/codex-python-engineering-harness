@@ -1,0 +1,4 @@
+# Checked-in project settings load only after the repository is trusted.
+# Hooks live exclusively in the sibling hooks.json at this configuration layer.
+[features]
+hooks = true

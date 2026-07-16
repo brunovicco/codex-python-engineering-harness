@@ -1,0 +1,22 @@
+{
+  "framework_versions": {
+    "cis-controls": "8.1",
+    "mitre-atlas": "retrieved-2026-07-16",
+    "nist-ai-rmf": "1.0",
+    "nist-sp-800-53": "rev5-release-5.2.0",
+    "owasp-agentic": "2026",
+    "owasp-llm": "2025"
+  },
+  "name": "agentic",
+  "required_controls": [
+    "CPH-SDLC-001",
+    "CPH-ARC-001",
+    "CPH-SCM-001",
+    "CPH-SEC-001",
+    "CPH-MCP-001",
+    "CPH-AGT-001",
+    "CPH-OBS-001",
+    "CPH-AIR-001"
+  ],
+  "version": "2026.1"
+}

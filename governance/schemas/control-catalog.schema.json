@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "controls": {
+      "items": {
+        "properties": {
+          "assurance": {
+            "properties": {
+              "checks": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "frequency": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": {
+                "enum": [
+                  "automated",
+                  "manual",
+                  "inherited"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "frequency",
+              "checks"
+            ],
+            "type": "object"
+          },
+          "id": {
+            "pattern": "^CPH-[A-Z]+-[0-9]{3}$",
+            "type": "string"
+          },
+          "ownership": {
+            "required": [
+              "control_owner",
+              "implementation_owner",
+              "evidence_owner"
+            ],
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "implemented",
+              "partially_implemented",
+              "inherited",
+              "planned",
+              "not_applicable"
+            ]
+          },
+          "title": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "status",
+          "ownership",
+          "assurance",
+          "mappings"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "version": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "controls"
+  ],
+  "title": "Codex Python Harness control catalog",
+  "type": "object"
+}

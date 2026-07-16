@@ -1,0 +1,40 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/validate_bash.py\"",
+            "timeout": 15,
+            "statusMessage": "Checking command safety"
+          }
+        ]
+      },
+      {
+        "matcher": "^mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/guard_mcp.py\"",
+            "timeout": 15,
+            "statusMessage": "Checking MCP safety"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/scan_worktree.py\"",
+            "timeout": 30,
+            "statusMessage": "Scanning changed files"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "codex-python-engineering-harness",
+  "interface": {
+    "displayName": "Codex Python Engineering Harness"
+  },
+  "plugins": [
+    {
+      "name": "python-engineering-harness",
+      "source": {
+        "source": "local",
+        "path": "./plugins/python-engineering-harness"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

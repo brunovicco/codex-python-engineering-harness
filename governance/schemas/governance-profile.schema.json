@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "framework_versions": {
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "name": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "overlays": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "required_controls": {
+      "items": {
+        "pattern": "^CPH-[A-Z]+-[0-9]{3}$",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "version": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "name",
+    "required_controls",
+    "framework_versions"
+  ],
+  "title": "Codex Python Harness governance profile",
+  "type": "object"
+}

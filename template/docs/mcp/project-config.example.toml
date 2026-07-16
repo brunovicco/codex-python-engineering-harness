@@ -1,0 +1,15 @@
+# Copy only reviewed server tables into ../../.codex/config.toml.
+[mcp_servers.issue_tracker]
+url = "https://mcp.example.invalid/v1"
+bearer_token_env_var = "ISSUE_TRACKER_MCP_TOKEN"
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+default_tools_approval_mode = "writes"
+
+[mcp_servers.company_tools]
+command = "uvx"
+args = ["--from", "company-mcp==1.2.3", "company-mcp"]
+env_vars = ["COMPANY_API_URL", "COMPANY_API_TOKEN"]
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+default_tools_approval_mode = "writes"

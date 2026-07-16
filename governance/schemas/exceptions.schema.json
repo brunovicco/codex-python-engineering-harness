@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "exceptions": {
+      "items": {
+        "properties": {
+          "expires_on": {
+            "format": "date",
+            "type": "string"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "owner": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "approved",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "status",
+          "expires_on"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "exceptions"
+  ],
+  "title": "Governance exceptions",
+  "type": "object"
+}
