@@ -14,6 +14,23 @@ import sys
 import structlog
 
 
+def add_trace_context(
+    _: object, __: str, event_dict: structlog.typing.EventDict
+) -> structlog.typing.EventDict:
+    """Add identifiers only when the current OpenTelemetry span context is valid."""
+    event_dict.pop("trace_id", None)
+    event_dict.pop("span_id", None)
+    try:
+        from opentelemetry import trace
+    except ImportError:
+        return event_dict
+    context = trace.get_current_span().get_span_context()
+    if context.is_valid:
+        event_dict["trace_id"] = trace.format_trace_id(context.trace_id)
+        event_dict["span_id"] = trace.format_span_id(context.span_id)
+    return event_dict
+
+
 def configure_logging(*, service: str, environment: str, version: str) -> None:
     """Configure structlog and standard-library logging for this process."""
     level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
@@ -24,6 +41,7 @@ def configure_logging(*, service: str, environment: str, version: str) -> None:
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
+        add_trace_context,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
@@ -56,20 +74,18 @@ def configure_logging(*, service: str, environment: str, version: str) -> None:
 
 
 def bind_correlation_id(correlation_id: str, *, trace_id: str | None = None) -> None:
-    """Bind correlation and trace identifiers to the current logging context."""
-    fields = {"correlation_id": correlation_id}
-    if trace_id is not None:
-        fields["trace_id"] = trace_id
-    structlog.contextvars.bind_contextvars(**fields)
+    """Bind a correlation ID; retain the old trace argument without trusting it for logs."""
+    del trace_id
+    structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
 
 
 def clear_request_context() -> None:
     """Clear per-request context variables without dropping process-wide fields.
 
-    Removes only ``correlation_id`` and ``trace_id``. Using
+    Removes only ``correlation_id``. Using
     :func:`structlog.contextvars.clear_contextvars` here would also drop the
     ``service``/``environment``/``version`` fields bound once at startup by
     :func:`configure_logging`, silently dropping them from every log line for
     the rest of the process.
     """
-    structlog.contextvars.unbind_contextvars("correlation_id", "trace_id")
+    structlog.contextvars.unbind_contextvars("correlation_id")

@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-HARNESS_VERSION = "1.1.0"
+HARNESS_VERSION = "1.2.0"
 DEFAULT_BRANCH = "main"
 PROFILES = ("service", "library", "workspace")
 GOVERNANCE_CATALOG_VERSION = "2026.1"
@@ -47,6 +47,7 @@ PROFILE_EXCLUDES: dict[str, tuple[str, ...]] = {
         "src/{{PACKAGE_NAME}}/domain",
         "src/{{PACKAGE_NAME}}/entrypoints",
         "tests/unit/test_logging.py",
+        "tests/unit/test_observability.py",
         "tests/unit/test_tracing.py",
     ),
     "workspace": (
@@ -277,6 +278,26 @@ def rendered_json(value: dict[str, Any]) -> RenderedFile:
     return RenderedFile(data=data, mode=0o644)
 
 
+def rendered_control_catalog(root: Path, profile: str) -> RenderedFile:
+    """Render profile-valid assurance evidence without distributing inapplicable tests."""
+    catalog = load_json_object(root / "governance" / "catalog" / "controls.json")
+    if profile == "service":
+        return rendered_json(catalog)
+    controls = catalog.get("controls")
+    if not isinstance(controls, list):
+        raise ValueError("Governance control catalog has invalid controls")
+    for control in controls:
+        if isinstance(control, dict) and control.get("id") == "CPH-OBS-001":
+            assurance = control.get("assurance")
+            if not isinstance(assurance, dict):
+                raise ValueError("CPH-OBS-001 has invalid assurance")
+            assurance["checks"] = [
+                ".github/workflows/quality.yml",
+                "scripts/quality_gate.py",
+            ]
+    return rendered_json(catalog)
+
+
 def _excluded(relative: Path, profile: str) -> bool:
     rendered = relative.as_posix()
     for prefix in PROFILE_EXCLUDES[profile]:
@@ -315,9 +336,7 @@ def rendered_profile(
 
     if governance_profile != "none":
         governance = root / "governance"
-        files[Path("governance/control-catalog.json")] = _render_source(
-            governance / "catalog" / "controls.json", values
-        )
+        files[Path("governance/control-catalog.json")] = rendered_control_catalog(root, profile)
         files[Path("governance/governance-profile.json")] = rendered_json(
             compose_governance_profile(root, governance_profile, governance_overlays)
         )

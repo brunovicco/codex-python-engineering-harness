@@ -123,6 +123,13 @@ def main() -> int:
                 for validator in validators:
                     if not run([sys.executable, f"scripts/{validator}"], cwd=target):
                         failures.append(f"{validator} {label}")
+                if profile == "service" and governance_profile == "none":
+                    if not run(
+                        ["uv", "sync", "--all-groups", "--extra", "observability"], cwd=target
+                    ):
+                        failures.append(f"observability dependency sync {label}")
+                    elif not run(["uv", "run", "python", "scripts/quality_gate.py"], cwd=target):
+                        failures.append(f"generated project quality gate {label}")
                 subdirectory = target / ("src" if profile != "workspace" else "docs")
                 if not run(
                     [
