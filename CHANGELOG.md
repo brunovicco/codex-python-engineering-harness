@@ -8,13 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-### Added
-
-- Public security and supported-version policy.
-- Upgrade and versioning documentation.
-- Complete repository quality gate in CI.
-- Dependabot updates for GitHub Actions and Python dependencies.
-- Five-minute evaluation and profile comparison.
+No unreleased changes.
 
 ## [1.2.0] - 2026-07-16
 
@@ -24,6 +18,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Vendor-neutral OpenTelemetry observability boundaries for generated services.
 - Service, library, and empty virtual-workspace generation profiles.
 - Non-destructive merge and drift checking for generated projects.
+- Public security and supported-version policy.
+- Upgrade and versioning documentation.
+- Complete repository quality gate in CI.
+- Dependabot updates for GitHub Actions and Python dependencies.
+- Five-minute evaluation and profile comparison.
 
 [Unreleased]: https://github.com/brunovicco/codex-python-engineering-harness/compare/v1.2.0...HEAD
 [1.2.0]: https://github.com/brunovicco/codex-python-engineering-harness/releases/tag/v1.2.0

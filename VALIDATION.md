@@ -1,9 +1,13 @@
 # Validation record
 
 Validated on 2026-07-16 (America/Sao_Paulo) with Python 3.12 for the harness and Python 3.13 for
-generated profiles. The source base was commit
-`1642fe05eda3c9b67e78a6d3a04e45b6055d509a`; the validation also includes the unreleased
-documentation, CI, and regression-test changes recorded in `CHANGELOG.md`.
+generated profiles.
+
+- Validated source commit: `f134a853b17c15caf9774d18ab20141f06d81714`.
+- Successful GitHub Actions run:
+  <https://github.com/brunovicco/codex-python-engineering-harness/actions/runs/29540528684>.
+- This record is stored in a later documentation-only release commit so it can identify the
+  validated source without an impossible self-referential commit hash.
 
 ## Results
 
