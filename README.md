@@ -1,5 +1,9 @@
 # Codex Python Engineering Harness
 
+[![CI](https://github.com/brunovicco/codex-python-engineering-harness/actions/workflows/harness-quality.yml/badge.svg)](https://github.com/brunovicco/codex-python-engineering-harness/actions/workflows/harness-quality.yml)
+[![Python 3.12-3.14](https://img.shields.io/badge/Python-3.12--3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A Codex-native, profile-driven bootstrap for production-oriented Python repositories. It creates
 standalone service, library, or virtual-workspace projects with durable Codex instructions,
 project configuration, skills, lifecycle hooks, architecture checks, MCP governance, and a single
@@ -110,4 +114,5 @@ uv run python scripts/quality_gate.py
 See `VALIDATION.md` for the latest verification record and `SOURCES.md` for official OpenAI
 references used by this port. See `docs/VERSIONING.md` for artifact lifecycles,
 `docs/UPGRADING.md` for non-destructive upgrades, `CHANGELOG.md` for release history, and
-`SECURITY.md` for private vulnerability reporting.
+`SECURITY.md` for private vulnerability reporting. Community participation is covered by
+`CONTRIBUTING.md`, `SUPPORT.md`, and `CODE_OF_CONDUCT.md`.

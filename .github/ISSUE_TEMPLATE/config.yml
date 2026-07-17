@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support and usage policy
+    url: https://github.com/brunovicco/codex-python-engineering-harness/blob/main/SUPPORT.md
+    about: Check supported requests, response expectations, and where to ask for help.
+  - name: Report a security vulnerability
+    url: https://github.com/brunovicco/codex-python-engineering-harness/security/advisories/new
+    about: Privately report suspected vulnerabilities instead of opening a public issue.

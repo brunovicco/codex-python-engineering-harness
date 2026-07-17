@@ -12,6 +12,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - Pin GitHub Actions and generated service container images to immutable SHAs and digests.
 - Add Docker image updates to Dependabot and verify pins for every supported Python version.
+- Add community health policies, structured issue forms, a pull-request checklist, and public
+  contribution and support guidance.
 
 ## [1.2.0] - 2026-07-16
 

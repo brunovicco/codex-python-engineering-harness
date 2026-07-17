@@ -13,7 +13,8 @@ upgraded explicitly.
 
 ## Reporting a vulnerability
 
-Report vulnerabilities privately through the repository's GitHub Security Advisory form:
+Report vulnerabilities privately through the repository's
+[GitHub Security Advisory form](https://github.com/brunovicco/codex-python-engineering-harness/security/advisories/new):
 
 <https://github.com/brunovicco/codex-python-engineering-harness/security/advisories/new>
 

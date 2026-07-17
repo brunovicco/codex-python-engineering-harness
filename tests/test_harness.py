@@ -825,6 +825,34 @@ class DistributionTests(unittest.TestCase):
         versioning = (ROOT / "docs/VERSIONING.md").read_text(encoding="utf-8")
         self.assertIn("independently versioned artifacts", versioning)
 
+    def test_community_health_contract_is_complete(self) -> None:
+        """Keep contribution routes structured and security reports private."""
+        required = (
+            "CODE_OF_CONDUCT.md",
+            "CONTRIBUTING.md",
+            "SUPPORT.md",
+            ".github/ISSUE_TEMPLATE/bug_report.yml",
+            ".github/ISSUE_TEMPLATE/feature_request.yml",
+            ".github/ISSUE_TEMPLATE/config.yml",
+            ".github/PULL_REQUEST_TEMPLATE.md",
+        )
+        for relative in required:
+            with self.subTest(path=relative):
+                self.assertTrue((ROOT / relative).is_file())
+
+        config = (ROOT / ".github/ISSUE_TEMPLATE/config.yml").read_text(encoding="utf-8")
+        self.assertIn("blank_issues_enabled: false", config)
+        self.assertIn("/security/advisories/new", config)
+        self.assertIn("/blob/main/SUPPORT.md", config)
+
+        bug = (ROOT / ".github/ISSUE_TEMPLATE/bug_report.yml").read_text(encoding="utf-8")
+        for field in ("id: component", "id: version", "id: environment", "id: reproduction"):
+            self.assertIn(field, bug)
+
+        pull_request = (ROOT / ".github/PULL_REQUEST_TEMPLATE.md").read_text(encoding="utf-8")
+        for topic in ("Security", "Privacy", "MCP", "Compatibility", "quality gates"):
+            self.assertIn(topic, pull_request)
+
     def test_service_matrix_installs_observability_extra(self) -> None:
         """Keep service-only dependencies available to the generated-profile gate."""
         workflow = (ROOT / ".github/workflows/harness-quality.yml").read_text(encoding="utf-8")

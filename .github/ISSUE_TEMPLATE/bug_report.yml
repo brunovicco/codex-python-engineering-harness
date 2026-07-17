@@ -1,0 +1,80 @@
+name: Bug report
+description: Report reproducible incorrect behavior in the harness, plugin, or generated project.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include secrets, personal data, or undisclosed vulnerabilities. Report suspected
+        vulnerabilities privately through the link configured for this repository.
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: Prerequisites
+      options:
+        - label: I searched existing issues for the same problem.
+          required: true
+        - label: I reproduced the problem with supported Python and Codex versions.
+          required: true
+        - label: This report does not disclose a security vulnerability.
+          required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - Bootstrap or merge behavior
+        - Generated service profile
+        - Generated library profile
+        - Generated workspace profile
+        - Codex plugin
+        - Hooks or validators
+        - MCP configuration or guard
+        - Governance profile or overlay
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Harness version, plugin version, release tag, or commit SHA.
+      placeholder: 1.2.1 or abc1234
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Python version, Codex version, and uv version.
+      placeholder: macOS 15, Python 3.13, Codex version, uv 0.11.28
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include the smallest commands or repository state that reproduce the problem.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized error output when useful.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add relevant configuration or links, with secrets and personal data removed.
