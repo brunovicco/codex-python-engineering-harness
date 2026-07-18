@@ -8,6 +8,44 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Phase 0-1 (report-only) Evidence-Gated Engineering Loop foundation, see `docs/LOOPS.md`:
+  - `.loop/**` and `scripts/loop_*` are now denylisted for agent writes in
+    `protect_sensitive_files.py` (template and plugin), so an agent cannot silently build
+    `loop_runner.py`/`loop_gate.py`/`loop_state.py` or populate `.loop/` ahead of schedule.
+  - `template/scripts/_vendor_loop_schemas/` vendors the contract validator from
+    `brunovicco/engineering-loop-schemas` (pinned commit recorded in each vendored file's
+    header); `template/scripts/validate_loop_contracts.py` wires it into the generated
+    project's quality gate as a new `loop-contracts` check that is a documented no-op until
+    a human places a contract under `.loop/contracts/`.
+  - `.github/workflows/loop-self-evaluation.yml` (`workflow_dispatch` + weekly schedule):
+    renders every profile/governance-profile combination, gates each one, checks
+    manifest/plugin/documentation consistency, and uploads a JSON + Markdown report as a
+    build artifact. It never modifies repository code; its optional agent-interpretation
+    step is disabled by default and defines no credentials. Minimal per-job permissions,
+    `persist-credentials: false`, and full-SHA-pinned actions throughout.
+
+### Fixed
+
+- The vendored `_vendor_loop_schemas/models.py` failed CI lint on the generated-profiles
+  Python 3.14 job: ruff's `UP037` flagged the module's load-bearing quoted self-referencing
+  `from_dict` return annotations (e.g. `-> "Budgets"`) as removable, because it assumes PEP
+  649 lazy-annotation semantics whenever the caller's own `target-version` is `py314` --
+  correct in isolation, wrong here since the quotes are required on Python 3.12/3.13, which
+  this vendored file also has to support. Re-vendored from
+  `brunovicco/engineering-loop-schemas@75a63eef269fd995128ab39c89e551fe58a27bf7`, which
+  suppresses `UP037` via a `[tool.ruff.lint.per-file-ignores]` entry rather than an inline
+  `# noqa` (an inline noqa becomes a *second* failure, `RUF100` unused-directive, on
+  3.12/3.13, where `UP037` never fires); added the matching per-file-ignore to
+  `template/pyproject.toml`, `profiles/library/pyproject.toml`, and
+  `profiles/workspace/pyproject.toml` (the `service` profile has no override and inherits
+  the template's). Also dropped a stray `# noqa: PLC0415` on `validate_contract.py`'s lazy
+  `import yaml`, unused everywhere this vendors to (no consumer selects ruff's `PL` rules)
+  and itself flagged by `RUF100` once `RUF` is enabled. Verified by rendering all three
+  profiles at Python 3.12/3.13/3.14 and re-running the full test suite and
+  `loop_self_evaluation.py`.
+
 ### Security
 
 - Close the sensitive-file **read** gap: `validate_bash.py` (Bash/`exec_command`) and

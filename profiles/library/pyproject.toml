@@ -35,6 +35,13 @@ ignore = ["ANN401", "D203", "D213"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["D", "S101", "ANN"]
 "scripts/**/*.py" = ["D"]
+# scripts/_vendor_loop_schemas/models.py quotes its `from_dict` classmethods'
+# self-referencing return annotations on purpose (see that file's own header
+# comment): the quotes are load-bearing on Python 3.12/3.13 and only look
+# removable to ruff's UP037 when this project's own target-version is 3.14.
+# Suppressed here (not with an inline noqa) because an inline noqa becomes an
+# unused-directive RUF100 error on 3.12/3.13, where UP037 never fires.
+"scripts/_vendor_loop_schemas/models.py" = ["UP037"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

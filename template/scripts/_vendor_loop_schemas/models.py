@@ -1,0 +1,353 @@
+# Vendored from brunovicco/engineering-loop-schemas
+# @ 75a63eef269fd995128ab39c89e551fe58a27bf7 (v0.1.0, includes the UP037/RUF100 lint fixes: a
+# per-file-ignore for the load-bearing quoted return annotations, and
+# removal of a stray noqa that was itself flagged once RUF is enabled).
+# No published tag exists yet as of this vendoring; pinned to the commit
+# above. Do not edit by hand -- re-vendor from the source repository
+# instead. See docs/LOOPS.md for how this fits into the Phase 0-1
+# report-only loop foundation.
+# Adapted for vendoring: this directory is named `_vendor_loop_schemas`
+# (not `loop_schemas`) so it does not itself match the `scripts/loop_*`
+# out-of-scope-loop-path denylist in protect_sensitive_files.py; the
+# `from loop_schemas...` imports were changed to
+# `from _vendor_loop_schemas...` to match. No other lines were edited.
+"""Typed dataclasses corresponding to schemas/*.schema.json.
+
+Deliberately stdlib-only (dataclasses + typing) so this module -- and
+validate_contract.py, which depends on it -- can be vendored into a
+harness's quality gate without adding a third-party dependency to that
+harness's core. The JSON Schema files under schemas/ remain the canonical,
+language-agnostic contract; these dataclasses are a convenience for Python
+callers and are kept in sync with the schemas by
+tests/test_models_match_schemas.py.
+"""
+
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+# Every `from_dict` classmethod below returns its own enclosing class by name
+# in quotes (e.g. `-> "Budgets"`), which is load-bearing, not stylistic: the
+# class name is not yet bound in any scope while its own class body is still
+# executing, so an unquoted self-reference raises NameError at import time on
+# any interpreter without PEP 649 lazy annotations (the default only from
+# Python 3.14 on -- this project supports 3.12-3.14). This module deliberately
+# avoids postponed evaluation of annotations (no `__future__` import) so it
+# stays safe to vendor verbatim into codebases that ban that import outright
+# (see README.md). Ruff's UP037 rule assumes PEP 649 semantics whenever a
+# caller's own target-version is 3.14 and will flag these quotes as removable
+# in that view alone -- do not remove them. Suppress UP037 for this file via
+# [tool.ruff.lint.per-file-ignores] in the consuming project's pyproject.toml
+# instead of an inline noqa: an inline noqa becomes an *unused-directive*
+# error (RUF100) on 3.12/3.13, where UP037 never fires in the first place.
+# See README.md's vendoring section for the exact config line.
+TriggerType = Literal["manual", "schedule", "event"]
+VerdictStatus = Literal["PASS", "NEEDS_WORK", "ESCALATE"]
+FinalState = Literal[
+    "SUCCEEDED",
+    "NO_OP",
+    "NO_PROGRESS",
+    "VERIFY_FAILED",
+    "POLICY_BLOCKED",
+    "BUDGET_EXCEEDED",
+    "ESCALATED",
+    "INFRA_FAILED",
+]
+Confidence = Literal["low", "medium", "high"]
+
+FINAL_STATES: tuple[FinalState, ...] = (
+    "SUCCEEDED",
+    "NO_OP",
+    "NO_PROGRESS",
+    "VERIFY_FAILED",
+    "POLICY_BLOCKED",
+    "BUDGET_EXCEEDED",
+    "ESCALATED",
+    "INFRA_FAILED",
+)
+
+
+def _required(data: dict[str, Any], key: str, context: str) -> Any:
+    """Return a required key or raise a clear ValueError."""
+    if key not in data:
+        raise ValueError(f"{context}: missing required field '{key}'")
+    return data[key]
+
+
+@dataclass(frozen=True, slots=True)
+class Trigger:
+    """How a loop run is started."""
+
+    type: TriggerType
+    schedule: str | None = None
+    event: str | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Trigger":
+        """Build a Trigger from a decoded contract document."""
+        return cls(
+            type=_required(data, "type", "trigger"),
+            schedule=data.get("schedule"),
+            event=data.get("event"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Selection:
+    """How candidate work items are chosen for a loop run."""
+
+    strategy: str
+    max_items: int | None = None
+    filters: tuple[str, ...] = ()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Selection":
+        """Build a Selection from a decoded contract document."""
+        return cls(
+            strategy=_required(data, "strategy", "selection"),
+            max_items=data.get("max_items"),
+            filters=tuple(data.get("filters", ())),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Baseline:
+    """Commands that establish the baseline a candidate is measured against."""
+
+    commands: tuple[str, ...]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Baseline":
+        """Build a Baseline from a decoded contract document."""
+        return cls(commands=tuple(_required(data, "commands", "baseline")))
+
+
+@dataclass(frozen=True, slots=True)
+class Acceptance:
+    """Names of mechanical hard gates that must pass for promotion."""
+
+    hard_gates: tuple[str, ...]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Acceptance":
+        """Build an Acceptance from a decoded contract document."""
+        return cls(hard_gates=tuple(_required(data, "hard_gates", "acceptance")))
+
+
+@dataclass(frozen=True, slots=True)
+class Budgets:
+    """Hard resource ceilings for a loop run."""
+
+    max_tokens: int
+    max_cost_usd: float | None = None
+    max_wall_clock_minutes: int | None = None
+    max_commands: int | None = None
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Budgets":
+        """Build a Budgets from a decoded contract document."""
+        return cls(
+            max_tokens=_required(data, "max_tokens", "budgets"),
+            max_cost_usd=data.get("max_cost_usd"),
+            max_wall_clock_minutes=data.get("max_wall_clock_minutes"),
+            max_commands=data.get("max_commands"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Scope:
+    """Glob-based allow/deny lists constraining what a run may touch."""
+
+    allowlist: tuple[str, ...]
+    denylist: tuple[str, ...]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Scope":
+        """Build a Scope from a decoded contract document."""
+        return cls(
+            allowlist=tuple(_required(data, "allowlist", "scope")),
+            denylist=tuple(_required(data, "denylist", "scope")),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Actions:
+    """Explicitly allowed and denied action names for a run."""
+
+    allowed: tuple[str, ...]
+    denied: tuple[str, ...]
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Actions":
+        """Build an Actions from a decoded contract document."""
+        return cls(
+            allowed=tuple(_required(data, "allowed", "actions")),
+            denied=tuple(_required(data, "denied", "actions")),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class HumanReview:
+    """Human sign-off requirement for a run's output."""
+
+    required: bool
+    reviewers: tuple[str, ...] = ()
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "HumanReview":
+        """Build a HumanReview from a decoded contract document."""
+        return cls(
+            required=_required(data, "required", "human_review"),
+            reviewers=tuple(data.get("reviewers", ())),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Contract:
+    """Full evidence-gated engineering loop contract."""
+
+    version: str
+    id: str
+    objective: str
+    trigger: Trigger
+    selection: Selection
+    baseline: Baseline
+    acceptance: Acceptance
+    budgets: Budgets
+    scope: Scope
+    actions: Actions
+    human_review: HumanReview
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "Contract":
+        """Build a Contract from a decoded YAML/JSON document.
+
+        Raises ValueError with a field-scoped message on any missing
+        required field. Does not perform cross-field validation (allowlist
+        vs. denylist overlap, hard-gate membership, budget positivity,
+        glob syntax); use validate_contract.validate() for that.
+        """
+        return cls(
+            version=_required(data, "version", "contract"),
+            id=_required(data, "id", "contract"),
+            objective=_required(data, "objective", "contract"),
+            trigger=Trigger.from_dict(_required(data, "trigger", "contract")),
+            selection=Selection.from_dict(_required(data, "selection", "contract")),
+            baseline=Baseline.from_dict(_required(data, "baseline", "contract")),
+            acceptance=Acceptance.from_dict(_required(data, "acceptance", "contract")),
+            budgets=Budgets.from_dict(_required(data, "budgets", "contract")),
+            scope=Scope.from_dict(_required(data, "scope", "contract")),
+            actions=Actions.from_dict(_required(data, "actions", "contract")),
+            human_review=HumanReview.from_dict(_required(data, "human_review", "contract")),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class Environment:
+    """Reproducibility-binding environment description for an evidence run."""
+
+    python: str
+    uv_lock_sha256: str
+    tool_versions: dict[str, str] = field(default_factory=dict[str, str])
+
+
+@dataclass(frozen=True, slots=True)
+class CommandResult:
+    """One executed command's hashed, timed result."""
+
+    command: str
+    exit_code: int
+    stdout_sha256: str
+    duration_s: float
+
+
+@dataclass(frozen=True, slots=True)
+class TokenUsage:
+    """Input/output token counts for a run."""
+
+    input: int
+    output: int
+
+
+@dataclass(frozen=True, slots=True)
+class Usage:
+    """Provider/model/cost accounting for a run."""
+
+    provider: str
+    model: str
+    tokens: TokenUsage
+    estimated_cost_usd: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Evidence:
+    """Mechanical record of what ran, against which commits, with hashed output."""
+
+    version: str
+    run_id: str
+    contract_id: str
+    baseline_sha: str
+    candidate_sha: str
+    environment: Environment
+    commands: tuple[CommandResult, ...]
+    changed_files: tuple[str, ...]
+    usage: Usage
+    started_at: str
+    finished_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class GateResult:
+    """Pass/fail outcome for one named hard gate."""
+
+    gate: str
+    passed: bool
+    detail: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Justification:
+    """Structured explanation backing a verdict's status."""
+
+    gate_results: tuple[GateResult, ...]
+    summary: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class Verdict:
+    """The single, mechanically-derived PASS/NEEDS_WORK/ESCALATE outcome."""
+
+    version: str
+    run_id: str
+    contract_id: str
+    candidate_sha: str
+    evidence_sha256: str
+    status: VerdictStatus
+    justification: Justification
+    final_state: FinalState
+    decided_at: str
+
+
+@dataclass(frozen=True, slots=True)
+class SelfReported:
+    """A builder's own, non-authoritative account of its result."""
+
+    gates_believed_passing: tuple[str, ...]
+    confidence: Confidence
+    open_questions: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class BuilderResult:
+    """What a builder reports when it finishes. Never used for certification."""
+
+    version: str
+    run_id: str
+    contract_id: str
+    baseline_sha: str
+    candidate_sha: str
+    summary: str
+    changed_files: tuple[str, ...]
+    self_reported: SelfReported
+    usage: Usage
+    started_at: str
+    finished_at: str

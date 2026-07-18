@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+# Vendored from brunovicco/engineering-loop-schemas
+# @ 75a63eef269fd995128ab39c89e551fe58a27bf7 (v0.1.0, includes the UP037/RUF100 lint fixes: a
+# per-file-ignore for the load-bearing quoted return annotations, and
+# removal of a stray noqa that was itself flagged once RUF is enabled).
+# No published tag exists yet as of this vendoring; pinned to the commit
+# above. Do not edit by hand -- re-vendor from the source repository
+# instead. See docs/LOOPS.md for how this fits into the Phase 0-1
+# report-only loop foundation.
+# Adapted for vendoring: this directory is named `_vendor_loop_schemas`
+# (not `loop_schemas`) so it does not itself match the `scripts/loop_*`
+# out-of-scope-loop-path denylist in protect_sensitive_files.py; the
+# `from loop_schemas...` import below was changed to
+# `from _vendor_loop_schemas...` to match. No other lines were edited.
+"""Validate an Evidence-Gated Engineering Loop contract. CLI and library.
+
+Deliberately stdlib-only so this file (and models.py, which it depends on)
+can be vendored verbatim into a harness's quality gate without adding a
+third-party dependency to that harness. YAML input is supported only if
+PyYAML happens to be installed in the calling environment; JSON input
+always works. See README.md for the vendoring convention and version
+header format expected in vendored copies.
+
+Checks performed, beyond JSON-Schema-shaped structural validation via
+models.Contract.from_dict():
+
+1. scope.allowlist and scope.denylist must not overlap (as literal glob
+   strings; this is a conservative, not-a-full-glob-intersection check --
+   see validate_globs_disjoint()'s docstring).
+2. every glob in scope.allowlist/denylist must be syntactically valid.
+3. every budget value must be strictly positive.
+4. every acceptance.hard_gates entry must belong to SUPPORTED_HARD_GATES.
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Any, cast
+
+from _vendor_loop_schemas.models import Contract
+
+# The hard-gate names both the Codex and claude-python-engineering-harness
+# Python engineering harnesses' quality_gate.py scripts already report as named checks
+# (see Check(...) entries in template/scripts/quality_gate.py in both
+# harnesses). A hard gate declared in a contract must resolve to a check
+# a harness's own quality gate can actually run.
+SUPPORTED_HARD_GATES: frozenset[str] = frozenset(
+    {
+        "lock",
+        "lint",
+        "format",
+        "typing",
+        "tests",
+        "security",
+        "dependencies",
+        "architecture",
+        "mcp",
+        "governance",
+    }
+)
+
+
+class ContractValidationError(ValueError):
+    """Raised by validate() callers that want a single exception on failure."""
+
+
+def _is_valid_glob(pattern: str) -> bool:
+    """Return whether a string is a syntactically well-formed glob.
+
+    Uses fnmatch.translate, which never raises for arbitrary input, so this
+    only rejects patterns that are empty or contain a NUL byte -- the only
+    inputs that are unambiguously never a usable path glob.
+    """
+    return bool(pattern) and "\x00" not in pattern
+
+
+def validate_globs_disjoint(allowlist: tuple[str, ...], denylist: tuple[str, ...]) -> list[str]:
+    """Return errors if any glob string is literally repeated in both lists.
+
+    This is intentionally a literal-string intersection, not a semantic
+    glob-range intersection (proving two arbitrary globs never match a
+    common path is not decidable in general). Authors should keep
+    allowlist/denylist entries specific enough that literal overlap is the
+    meaningful signal; scope enforcement at runtime always lets denylist
+    win regardless of this check.
+    """
+    overlap = sorted(set(allowlist) & set(denylist))
+    if overlap:
+        return [f"scope.allowlist and scope.denylist both contain: {', '.join(overlap)}"]
+    return []
+
+
+def validate(data: dict[str, Any]) -> list[str]:
+    """Validate a decoded contract document. Returns a list of error strings.
+
+    An empty list means the contract is valid. Structural errors (missing
+    required fields, wrong types) short-circuit and return immediately
+    with a single message, since cross-field checks below assume a
+    structurally valid contract to run against.
+    """
+    try:
+        contract = Contract.from_dict(data)
+    except (ValueError, TypeError, KeyError) as exc:
+        return [f"structural error: {exc}"]
+
+    errors: list[str] = []
+
+    for pattern in (*contract.scope.allowlist, *contract.scope.denylist):
+        if not _is_valid_glob(pattern):
+            errors.append(f"scope: {pattern!r} is not a syntactically valid glob")
+
+    errors.extend(validate_globs_disjoint(contract.scope.allowlist, contract.scope.denylist))
+
+    budget_fields = {
+        "budgets.max_tokens": contract.budgets.max_tokens,
+        "budgets.max_cost_usd": contract.budgets.max_cost_usd,
+        "budgets.max_wall_clock_minutes": contract.budgets.max_wall_clock_minutes,
+        "budgets.max_commands": contract.budgets.max_commands,
+    }
+    for name, value in budget_fields.items():
+        if value is not None and value <= 0:
+            errors.append(f"{name} must be positive, got {value!r}")
+
+    unsupported_gates = sorted(set(contract.acceptance.hard_gates) - SUPPORTED_HARD_GATES)
+    if unsupported_gates:
+        errors.append(
+            "acceptance.hard_gates contains unsupported gate(s): "
+            f"{', '.join(unsupported_gates)}. Supported: {', '.join(sorted(SUPPORTED_HARD_GATES))}"
+        )
+
+    if contract.trigger.type == "schedule" and not contract.trigger.schedule:
+        errors.append("trigger.schedule is required when trigger.type is 'schedule'")
+    if contract.trigger.type == "event" and not contract.trigger.event:
+        errors.append("trigger.event is required when trigger.type is 'event'")
+
+    return errors
+
+
+def load_document(path: Path) -> dict[str, Any]:
+    """Load a JSON or YAML contract document from disk.
+
+    YAML requires PyYAML to be importable; JSON never does. Raises
+    ContractValidationError with an actionable message if YAML is
+    requested but PyYAML is unavailable.
+    """
+    text = path.read_text(encoding="utf-8")
+    if path.suffix in {".yaml", ".yml"}:
+        try:
+            import yaml  # local import: optional, YAML-only dependency
+        except ImportError as exc:
+            raise ContractValidationError(
+                f"{path}: reading YAML contracts requires PyYAML "
+                "('pip install pyyaml' or 'uv add pyyaml'); pass a .json contract instead "
+                "if you cannot add that dependency here."
+            ) from exc
+        document = yaml.safe_load(text)
+    else:
+        document = json.loads(text)
+    if not isinstance(document, dict):
+        raise ContractValidationError(f"{path}: top-level document must be a mapping/object")
+    return cast(dict[str, Any], document)
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for standalone invocation."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("contract", type=Path, help="Path to a .json or .yaml/.yml contract")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Validate the contract named on the command line."""
+    args = parse_args(argv)
+    try:
+        document = load_document(args.contract)
+    except ContractValidationError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"{args.contract}: could not read or parse: {exc}", file=sys.stderr)
+        return 2
+
+    errors = validate(document)
+    if errors:
+        print(f"{args.contract}: INVALID", file=sys.stderr)
+        for error in errors:
+            print(f"  - {error}", file=sys.stderr)
+        return 1
+
+    print(f"{args.contract}: valid")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -15,7 +16,7 @@ import tomllib
 import unittest
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, ClassVar
 
 import bootstrap
 
@@ -757,6 +758,31 @@ class HookTests(unittest.TestCase):
         decision = json.loads(result.stdout)["hookSpecificOutput"]
         self.assertEqual(decision["permissionDecision"], "deny")
 
+    def test_protect_sensitive_files_blocks_out_of_scope_loop_paths(self) -> None:
+        for target in (".loop/contracts/x.yaml", "scripts/loop_runner.py", "scripts/loop_gate.py"):
+            with self.subTest(target=target):
+                with tempfile.TemporaryDirectory() as directory:
+                    payload = {
+                        "cwd": directory,
+                        "tool_name": "Write",
+                        "tool_input": {"file_path": target},
+                    }
+                    result = run_hook("protect_sensitive_files.py", payload, Path(directory))
+                decision = json.loads(result.stdout)["hookSpecificOutput"]
+                self.assertEqual(decision["permissionDecision"], "deny")
+                self.assertIn("out of scope", decision["permissionDecisionReason"])
+
+    def test_protect_sensitive_files_allows_ordinary_scripts_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "cwd": directory,
+                "tool_name": "Write",
+                "tool_input": {"file_path": "scripts/validate_loop_contracts.py"},
+            }
+            result = run_hook("protect_sensitive_files.py", payload, Path(directory))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
     def test_stop_scan_finds_secret_written_outside_edit_tools(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1068,6 +1094,142 @@ class SensitiveFileReadProtectionTests(unittest.TestCase):
         self.assertTrue(patterns.matches_denied_path(".env"))
         self.assertFalse(patterns.matches_denied_path(".env.example"))
         self.assertTrue(patterns.references_sensitive_token("~/.ssh/id_rsa"))
+
+
+class LoopFoundationTests(unittest.TestCase):
+    """Cover the Phase 0-1, report-only Evidence-Gated Engineering Loop foundation."""
+
+    VALID_CONTRACT: ClassVar[dict[str, object]] = {
+        "version": "1.0.0",
+        "id": "example",
+        "objective": "Example.",
+        "trigger": {"type": "manual"},
+        "selection": {"strategy": "single-issue"},
+        "baseline": {"commands": ["true"]},
+        "acceptance": {"hard_gates": ["lint"]},
+        "budgets": {"max_tokens": 1000},
+        "scope": {"allowlist": [], "denylist": []},
+        "actions": {"allowed": [], "denied": []},
+        "human_review": {"required": True},
+    }
+
+    @staticmethod
+    def _stage_loop_scripts(root: Path) -> Path:
+        """Copy the vendored validator into root/scripts/, as a generated project has it."""
+        scripts_dir = root / "scripts"
+        scripts_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(
+            ROOT / "template/scripts/validate_loop_contracts.py",
+            scripts_dir / "validate_loop_contracts.py",
+        )
+        shutil.copytree(
+            ROOT / "template/scripts/_vendor_loop_schemas",
+            scripts_dir / "_vendor_loop_schemas",
+        )
+        return scripts_dir / "validate_loop_contracts.py"
+
+    def test_template_quality_gate_lists_loop_contracts_check(self) -> None:
+        module = load_module("template_quality_gate", ROOT / "template/scripts/quality_gate.py")
+        names = {check.name for check in module.configured_checks(ROOT / "template")}
+        self.assertIn("loop-contracts", names)
+
+    def test_vendored_loop_schemas_directory_does_not_match_its_own_denylist(self) -> None:
+        """Regression guard: the vendored package must not self-block via scripts/loop_*."""
+        vendor_dir = ROOT / "template/scripts/_vendor_loop_schemas"
+        self.assertTrue(vendor_dir.is_dir())
+        self.assertFalse(vendor_dir.name.startswith("loop_"))
+
+    def test_validate_loop_contracts_skips_cleanly_with_no_contracts_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = self._stage_loop_scripts(root)
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("Skipping", result.stdout)
+
+    def test_validate_loop_contracts_passes_a_valid_json_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = self._stage_loop_scripts(root)
+            contracts_dir = root / ".loop" / "contracts"
+            contracts_dir.mkdir(parents=True)
+            (contracts_dir / "example.json").write_text(
+                json.dumps(self.VALID_CONTRACT), encoding="utf-8"
+            )
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("valid", result.stdout)
+
+    def test_validate_loop_contracts_fails_an_invalid_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            script = self._stage_loop_scripts(root)
+            contracts_dir = root / ".loop" / "contracts"
+            contracts_dir.mkdir(parents=True)
+            (contracts_dir / "broken.json").write_text("{}", encoding="utf-8")
+            result = subprocess.run(
+                [sys.executable, str(script)],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Invalid loop contract", result.stderr)
+
+
+class SelfEvaluationWorkflowTests(unittest.TestCase):
+    """Cover the report-only self-evaluation workflow (B3)."""
+
+    def test_workflow_uses_minimal_pinned_and_credential_safe_actions(self) -> None:
+        content = (ROOT / ".github/workflows/loop-self-evaluation.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", content)
+        self.assertIn('cron: "0 7 * * 1"', content)
+        self.assertIn("persist-credentials: false", content)
+        self.assertNotIn("pull_request_target", content)
+        self.assertRegex(content, r"permissions:\s*\{\}")
+        self.assertIn("contents: read", content)
+        mutable_action = re.compile(r"uses:\s+[^\s@]+@v\d+\s*$", re.MULTILINE)
+        self.assertIsNone(mutable_action.search(content))
+
+    def test_self_evaluation_report_is_generated_and_all_projects_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output_dir = Path(directory) / "report"
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(ROOT / "scripts/loop_self_evaluation.py"),
+                    "--output-dir",
+                    str(output_dir),
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=900,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            report = json.loads((output_dir / "report.json").read_text(encoding="utf-8"))
+            markdown = (output_dir / "report.md").read_text(encoding="utf-8")
+        self.assertTrue(report["manifest_and_docs_consistency"]["passed"])
+        self.assertEqual(len(report["projects"]), 6)
+        self.assertTrue(all(project["passed"] for project in report["projects"]))
+        self.assertIn("report-only workflow", markdown)
 
 
 if __name__ == "__main__":
