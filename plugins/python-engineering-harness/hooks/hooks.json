@@ -22,6 +22,17 @@
             "statusMessage": "Checking MCP safety"
           }
         ]
+      },
+      {
+        "matcher": "^(apply_patch|Edit|Write)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$PLUGIN_ROOT/scripts/protect_sensitive_files.py\"",
+            "timeout": 15,
+            "statusMessage": "Protecting sensitive paths"
+          }
+        ]
       }
     ],
     "Stop": [
