@@ -1,0 +1,74 @@
+name: loop-self-evaluation
+
+# Report-only harness self-evaluation (Phase 0-1 of the Evidence-Gated
+# Engineering Loop foundation, see docs/LOOPS.md). This workflow never
+# modifies repository code: it renders every profile/governance
+# combination into a runner-local temporary directory, gates each one,
+# checks manifest/plugin/documentation consistency, and uploads a
+# structured JSON + Markdown report as a build artifact. It does not open
+# pull requests, push commits, or otherwise act on its findings.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_agent_interpretation:
+        description: >-
+          Also run an agent-based interpretation pass over the report
+          (read-only, no repository writes). Disabled by default; requires
+          provider credentials to be configured as repository secrets,
+          which this workflow does not itself define or store.
+        type: boolean
+        default: false
+  schedule:
+    - cron: "0 7 * * 1" # weekly, Monday 07:00 UTC
+
+permissions: {}
+
+jobs:
+  self-evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.28"
+
+      - name: Install repository dependencies
+        run: uv sync --frozen --all-groups
+
+      - name: Run self-evaluation (renders profiles, gates each, checks docs)
+        run: >-
+          uv run python scripts/loop_self_evaluation.py
+          --output-dir build/loop-self-evaluation
+
+      - name: Optional read-only agent interpretation (disabled by default)
+        if: ${{ inputs.run_agent_interpretation == true }}
+        run: |
+          echo "Agent interpretation is not wired up in this repository yet."
+          echo "This step is an intentionally inert placeholder: it must stay"
+          echo "read-only (e.g. 'codex exec --sandbox read-only') and must"
+          echo "never write to the repository or open a pull request. No"
+          echo "provider credentials are defined in this repository; add them"
+          echo "as repository secrets outside of version control before"
+          echo "implementing this step."
+
+      - name: Upload self-evaluation report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: loop-self-evaluation-report
+          path: build/loop-self-evaluation/
+          retention-days: 90

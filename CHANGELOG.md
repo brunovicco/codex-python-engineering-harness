@@ -8,6 +8,24 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Added
+
+- Phase 0-1 (report-only) Evidence-Gated Engineering Loop foundation, see `docs/LOOPS.md`:
+  - `.loop/**` and `scripts/loop_*` are now denylisted for agent writes in
+    `protect_sensitive_files.py` (template and plugin), so an agent cannot silently build
+    `loop_runner.py`/`loop_gate.py`/`loop_state.py` or populate `.loop/` ahead of schedule.
+  - `template/scripts/_vendor_loop_schemas/` vendors the contract validator from
+    `brunovicco/engineering-loop-schemas` (pinned commit recorded in each vendored file's
+    header); `template/scripts/validate_loop_contracts.py` wires it into the generated
+    project's quality gate as a new `loop-contracts` check that is a documented no-op until
+    a human places a contract under `.loop/contracts/`.
+  - `.github/workflows/loop-self-evaluation.yml` (`workflow_dispatch` + weekly schedule):
+    renders every profile/governance-profile combination, gates each one, checks
+    manifest/plugin/documentation consistency, and uploads a JSON + Markdown report as a
+    build artifact. It never modifies repository code; its optional agent-interpretation
+    step is disabled by default and defines no credentials. Minimal per-job permissions,
+    `persist-credentials: false`, and full-SHA-pinned actions throughout.
+
 ### Security
 
 - Close the sensitive-file **read** gap: `validate_bash.py` (Bash/`exec_command`) and

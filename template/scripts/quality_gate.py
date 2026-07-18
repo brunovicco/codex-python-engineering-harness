@@ -67,6 +67,7 @@ def configured_checks(root: Path) -> list[Check]:
         Check("architecture", (sys.executable, "scripts/validate_architecture.py")),
         Check("mcp", (sys.executable, "scripts/validate_mcp_config.py")),
         Check("governance", (sys.executable, "scripts/governance_gate.py")),
+        Check("loop-contracts", (sys.executable, "scripts/validate_loop_contracts.py")),
     ]
     checks.append(Check("typing", ("mypy", *type_roots) if type_roots else ()))
     checks.append(Check("tests", ("pytest",) if test_roots else ()))

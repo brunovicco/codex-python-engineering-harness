@@ -49,6 +49,14 @@ pretty = true
 module = ["tests.*"]
 disallow_untyped_decorators = false
 
+# PyYAML is an optional, YAML-only dependency of the vendored loop-schemas
+# validator (template/scripts/_vendor_loop_schemas/validate_contract.py) and
+# is deliberately not added to this repository's own dependencies while the
+# shared core is in feature freeze; JSON contracts always work without it.
+[[tool.mypy.overrides]]
+module = ["yaml"]
+ignore_missing_imports = true
+
 [tool.bandit]
 exclude_dirs = ["tests", "template/tests"]
 skips = []
