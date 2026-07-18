@@ -4,6 +4,7 @@ Framework-neutral Python {{PYTHON_VERSION}} library using uv.
 Governance profile: `{{GOVERNANCE_PROFILE}}`.
 
 ```bash
+uv lock --check
 uv sync --frozen
 uv run python scripts/quality_gate.py
 ```

@@ -27,6 +27,9 @@ jobs:
         with:
           version: "0.11.28"
 
+      - name: Verify lockfile is up to date
+        run: uv lock --check
+
       - name: Install repository dependencies
         run: uv sync --frozen --all-groups
 
@@ -99,10 +102,20 @@ jobs:
       - name: Check harness metadata and branch alignment
         run: python3 bootstrap.py --target ../generated --check
 
+      - name: Verify generated lockfile is up to date
+        if: matrix.profile == 'service'
+        working-directory: ../generated
+        run: uv lock --check
+
       - name: Frozen sync with observability
         if: matrix.profile == 'service'
         working-directory: ../generated
         run: uv sync --frozen --all-packages --all-groups --extra observability
+
+      - name: Verify generated lockfile is up to date
+        if: matrix.profile != 'service'
+        working-directory: ../generated
+        run: uv lock --check
 
       - name: Frozen sync
         if: matrix.profile != 'service'

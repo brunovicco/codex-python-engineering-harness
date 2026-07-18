@@ -22,6 +22,8 @@ jobs:
           enable-cache: true
       - name: Install Python
         run: uv python install
+      - name: Verify lockfile is up to date
+        run: uv lock --check
       - name: Install workspace dependencies
         run: uv sync --frozen --all-packages --all-groups
       - name: Project quality gate

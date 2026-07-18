@@ -6,6 +6,7 @@ Governance profile: `{{GOVERNANCE_PROFILE}}`.
 Declare real members in `[tool.uv.workspace]`, then run:
 
 ```bash
+uv lock --check
 uv sync --frozen --all-packages
 uv run python scripts/quality_gate.py
 ```

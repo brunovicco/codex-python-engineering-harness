@@ -10,6 +10,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- Add an explicit `uv lock --check` CI step before every `uv sync --frozen` step (repository, generated profiles, template, and library/workspace profile workflows) and document it as the first setup command in README.md, template/AGENTS.md, template/README.md, and profiles/*/README.md, so lockfile drift from `pyproject.toml` fails fast instead of silently installing stale dependencies. The repository and template `quality_gate.py` scripts already ran `uv lock --check` as their first check.
+- Add a feature-freeze notice to the top of CONTRIBUTING.md: the shared core only accepts bug/security/documentation fixes while it is consolidated with its sibling harness into a unified harness.
 - Pin GitHub Actions and generated service container images to immutable SHAs and digests.
 - Add Docker image updates to Dependabot and verify pins for every supported Python version.
 - Add community health policies, structured issue forms, a pull-request checklist, and public

@@ -74,6 +74,7 @@ do not use it when an existing project cannot adopt its uv workflow or architect
 ## Generated project workflow
 
 ```bash
+uv lock --check
 uv sync --frozen --all-groups
 uv run ruff check .
 uv run ruff format --check .
