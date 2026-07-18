@@ -963,5 +963,112 @@ class DistributionTests(unittest.TestCase):
         self.assertEqual(offenders, [])
 
 
+class SensitiveFileReadProtectionTests(unittest.TestCase):
+    """Cover read/search/list access to secrets across every tool path Codex
+    actually exposes: Bash (shell-mediated reads), apply_patch/Edit/Write
+    (direct file access), and MCP tools (filesystem-shaped servers). Codex
+    has no distinct native Read/Grep/Glob function tools -- see the
+    tool-coverage note in sensitive_patterns.py -- so these three surfaces
+    are the complete equivalent of that coverage.
+    """
+
+    SENSITIVE_CASES: tuple[tuple[str, str], ...] = (
+        ("dotenv", ".env"),
+        ("credentials-directory", "config/credentials/db.json"),
+        ("ssh-key", "/home/example/.ssh/id_rsa"),
+        ("aws-credentials", "/home/example/.aws/credentials"),
+        ("terraform-state", "infra/terraform.tfstate"),
+    )
+
+    def test_bash_blocks_every_sensitive_pattern(self) -> None:
+        for label, target in self.SENSITIVE_CASES:
+            with self.subTest(label=label):
+                with tempfile.TemporaryDirectory() as directory:
+                    payload = {
+                        "cwd": directory,
+                        "tool_name": "Bash",
+                        "tool_input": {"command": f"cat {target}"},
+                    }
+                    result = run_hook("validate_bash.py", payload, Path(directory))
+                decision = json.loads(result.stdout)["hookSpecificOutput"]
+                self.assertEqual(decision["permissionDecision"], "deny")
+
+    def test_apply_patch_edit_write_blocks_every_sensitive_pattern(self) -> None:
+        for label, target in self.SENSITIVE_CASES:
+            with self.subTest(label=label):
+                with tempfile.TemporaryDirectory() as directory:
+                    payload = {
+                        "cwd": directory,
+                        "tool_name": "Read",
+                        "tool_input": {"file_path": target},
+                    }
+                    result = run_hook("protect_sensitive_files.py", payload, Path(directory))
+                decision = json.loads(result.stdout)["hookSpecificOutput"]
+                self.assertEqual(decision["permissionDecision"], "deny")
+
+    def test_mcp_filesystem_tool_blocks_every_sensitive_pattern(self) -> None:
+        for label, target in self.SENSITIVE_CASES:
+            with self.subTest(label=label):
+                with tempfile.TemporaryDirectory() as directory:
+                    payload = {
+                        "cwd": directory,
+                        "tool_name": "mcp__filesystem__read_file",
+                        "tool_input": {"path": target},
+                    }
+                    result = run_hook("guard_mcp.py", payload, Path(directory))
+                decision = json.loads(result.stdout)["hookSpecificOutput"]
+                self.assertEqual(decision["permissionDecision"], "deny")
+
+    def test_bash_allows_ordinary_file_read(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "cwd": directory,
+                "tool_name": "Bash",
+                "tool_input": {"command": "cat README.md"},
+            }
+            result = run_hook("validate_bash.py", payload, Path(directory))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_apply_patch_edit_write_allows_ordinary_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "cwd": directory,
+                "tool_name": "Read",
+                "tool_input": {"file_path": "src/app.py"},
+            }
+            result = run_hook("protect_sensitive_files.py", payload, Path(directory))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_mcp_filesystem_tool_allows_ordinary_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            payload = {
+                "cwd": directory,
+                "tool_name": "mcp__filesystem__read_file",
+                "tool_input": {"path": "docs/README.md"},
+            }
+            result = run_hook("guard_mcp.py", payload, Path(directory))
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, "")
+
+    def test_plugin_pretooluse_wires_protect_sensitive_files_for_apply_patch_edit_write(
+        self,
+    ) -> None:
+        """Regression guard for the plugin/template PreToolUse divergence."""
+        content = (ROOT / "plugins/python-engineering-harness/hooks/hooks.json").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("protect_sensitive_files.py", content)
+        self.assertIn("apply_patch|Edit|Write", content)
+
+    def test_sensitive_patterns_module_is_shared_and_matches_denylist(self) -> None:
+        patterns = load_module("sensitive_patterns_test", HOOKS / "sensitive_patterns.py")
+
+        self.assertTrue(patterns.matches_denied_path(".env"))
+        self.assertFalse(patterns.matches_denied_path(".env.example"))
+        self.assertTrue(patterns.references_sensitive_token("~/.ssh/id_rsa"))
+
+
 if __name__ == "__main__":
     unittest.main()

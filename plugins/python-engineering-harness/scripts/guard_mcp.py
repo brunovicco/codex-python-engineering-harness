@@ -6,6 +6,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 from _common import ask_tool, deny_tool, log_event, read_input, run_pre_tool_hook
+from sensitive_patterns import matches_denied_path, references_sensitive_token
 
 MUTATING_TERMS = {
     "add",
@@ -86,6 +87,21 @@ SAFE_PLACEHOLDER = re.compile(
 )
 
 
+PATH_LIKE_KEYS = {
+    "file_path",
+    "path",
+    "notebook_path",
+    "filename",
+    "file",
+    "dir",
+    "directory",
+    "key",
+    "prefix",
+    "source",
+    "destination",
+}
+
+
 def iter_values(value: Any, path: tuple[str, ...] = ()) -> Iterator[tuple[tuple[str, ...], Any]]:
     """Yield scalar values from an arbitrarily nested tool input."""
     if isinstance(value, Mapping):
@@ -117,6 +133,26 @@ def contains_literal_secret(tool_input: Mapping[str, Any]) -> str | None:
         key = path[-1] if path else ""
         if SENSITIVE_KEY.search(key) and not SAFE_PLACEHOLDER.fullmatch(value.strip()):
             return f"literal sensitive value detected at {'.'.join(path)}"
+    return None
+
+
+def contains_sensitive_path(tool_input: Mapping[str, Any]) -> str | None:
+    """Return a reason when MCP input reads or writes a sensitive file path.
+
+    Covers MCP tools (for example a filesystem server's ``read_file`` or
+    ``list_directory``) with the same denylist enforced for Bash and
+    apply_patch/Edit/Write, since Codex routes filesystem-shaped MCP calls
+    through this hook rather than a dedicated Read/Grep/Glob tool.
+    """
+    for path, value in iter_values(tool_input):
+        if not isinstance(value, str) or not value:
+            continue
+        key = path[-1] if path else ""
+        if key in PATH_LIKE_KEYS:
+            if matches_denied_path(value) or references_sensitive_token(value):
+                return f"sensitive path referenced at {'.'.join(path) or '<root>'}"
+        elif references_sensitive_token(value):
+            return f"sensitive path referenced at {'.'.join(path) or '<root>'}"
     return None
 
 
@@ -158,6 +194,12 @@ def main() -> None:
         return
     if not isinstance(tool_input, Mapping):
         tool_input = {}
+
+    path_reason = contains_sensitive_path(tool_input)
+    if path_reason:
+        log_event(payload, "guard_mcp", "sensitive-file", "deny")
+        deny_tool(f"Blocked MCP call: {path_reason}. Sensitive files are not readable via MCP.")
+        return
 
     secret_reason = contains_literal_secret(tool_input)
     if secret_reason:

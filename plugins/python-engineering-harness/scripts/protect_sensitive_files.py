@@ -1,38 +1,11 @@
 #!/usr/bin/env python3
 """Block Codex from reading or modifying sensitive files."""
 
-import fnmatch
 from pathlib import Path
 from typing import Any
 
 from _common import deny_tool, log_event, project_root, read_input, run_pre_tool_hook
-
-DENIED_PATTERNS = (
-    ".env",
-    ".env.*",
-    "**/.env",
-    "**/.env.*",
-    "**/secrets/**",
-    "**/credentials/**",
-    "**/.ssh/**",
-    "**/.aws/**",
-    "**/.azure/**",
-    "**/.config/gcloud/**",
-    "**/*.pem",
-    "**/*.key",
-    "**/id_rsa",
-    "**/id_ed25519",
-    "**/*credentials*.json",
-    "**/*secret*.json",
-    "**/terraform.tfstate*",
-)
-
-ALLOWED_EXAMPLES = (
-    ".env.example",
-    "**/.env.example",
-    "**/*credentials*.example.*",
-    "**/*secret*.example.*",
-)
+from sensitive_patterns import matches_denied_path
 
 
 def strings(value: Any) -> list[str]:
@@ -55,10 +28,7 @@ def strings(value: Any) -> list[str]:
 
 def matches(path: str) -> bool:
     """Return whether a path matches a denied pattern and is not an example."""
-    normalized = path.replace("\\", "/")
-    if any(fnmatch.fnmatch(normalized, pattern) for pattern in ALLOWED_EXAMPLES):
-        return False
-    return any(fnmatch.fnmatch(normalized, pattern) for pattern in DENIED_PATTERNS)
+    return matches_denied_path(path)
 
 
 def main() -> None:

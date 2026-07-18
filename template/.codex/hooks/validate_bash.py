@@ -5,6 +5,7 @@ import re
 import shlex
 
 from _common import deny_tool, log_event, read_input, run_pre_tool_hook
+from sensitive_patterns import references_sensitive_token
 
 RULES: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"(^|[;&|]\s*)sudo\b", re.IGNORECASE), "sudo is not allowed from Codex"),
@@ -52,16 +53,6 @@ RULES: tuple[tuple[re.Pattern[str], str], ...] = (
         re.compile(r"\b(?:mkfs|fdisk|dd\s+if=)\b", re.IGNORECASE),
         "low-level disk operations are blocked",
     ),
-)
-
-SENSITIVE_PATH = re.compile(
-    r"(?:^|[/\\\s'\"=])(?:"
-    r"\.env(?!\.example)(?:\.[A-Za-z0-9_-]+)?|"
-    r"id_(?:rsa|ed25519)|"
-    r"terraform\.tfstate(?:\.[A-Za-z0-9_-]+)?|"
-    r"(?:secrets?|credentials?)(?:/|\\)"
-    r")",
-    re.IGNORECASE,
 )
 
 SHELL_SEPARATORS = frozenset({";", "&", "&&", "|", "||"})
@@ -119,7 +110,7 @@ def references_sensitive_path(command: str) -> bool:
     tokens = shell_tokens(command)
     ignored = jq_filter_indexes(tokens)
     return any(
-        SENSITIVE_PATH.search(token) is not None
+        references_sensitive_token(token)
         for index, token in enumerate(tokens)
         if index not in ignored
     )
