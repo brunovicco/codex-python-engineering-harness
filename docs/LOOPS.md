@@ -51,10 +51,13 @@ Every loop run belongs to one of three levels of scrutiny, mirrored from
 - A builder never certifies its own result. Only a mechanically-derived
   `verdict` can.
 - A hard gate is default-FAIL and must reduce to a command with an exit
-  code. The set of hard gates a contract may reference
-  (`acceptance.hard_gates`) is exactly the named checks this harness's own
+  code. The contract-addressable hard gates
+  (`acceptance.hard_gates`) are exactly the named checks this harness's own
   `quality_gate.py` implements: `lock`, `lint`, `format`, `typing`,
   `tests`, `security`, `dependencies`, `architecture`, `mcp`, `governance`.
+  Separate mandatory infrastructure checks, including `loop-schema-vendor` and
+  `loop-contracts`, always protect provenance, integrity, and contract validation; they are not
+  arbitrary commands selectable by a builder.
 - Evidence is bound to exact commits (`baseline_sha`, `candidate_sha`) and
   a hashed environment (`uv_lock_sha256`), so a verdict can always be
   traced back to exactly what ran against exactly what code.
@@ -81,14 +84,18 @@ Every completed run resolves to exactly one final state
 
 ## Vendoring
 
-`scripts/_vendor_loop_schemas/` (and its `template/scripts/` copy shipped
-to generated projects) is a verbatim vendored copy of
-`engineering-loop-schemas`' `src/loop_schemas/` at a pinned commit, recorded
-in a header comment in each vendored file. Re-vendor from the source
-repository rather than hand-editing; the one intentional deviation (the
-package directory is named `_vendor_loop_schemas`, not `loop_schemas`, so
-it does not collide with the `scripts/loop_*` denylist above) is documented
-in that same header.
+`template/scripts/_vendor_loop_schemas/` is a deterministic bundle rendered from
+`engineering-loop-schemas v0.1.2` at the full commit
+`0459d61b7b1d4e7b46709e6d3895770553e6fab0`. Its `manifest.json` records the source repository,
+version, commit, file sizes, SHA-256 hashes, and the declared import adaptation.
+
+The bundle is not a byte-for-byte copy. During rendering, the package import in
+`validate_contract.py` changes from `loop_schemas` to `_vendor_loop_schemas`; this keeps the
+vendored package isolated and avoids collision with the protected `scripts/loop_*` namespace. The
+adaptation is explicit in the manifest and covered by deterministic-rendering, integrity, and
+tampering tests. `loop-schema-vendor` verifies the bundle offline on every generated-project
+quality run. Fix the canonical schemas repository and render a new version instead of editing the
+bundle manually.
 
 `validate_contract.py` is stdlib-only. Reading a YAML contract requires
 PyYAML to be importable in the environment `scripts/quality_gate.py` runs

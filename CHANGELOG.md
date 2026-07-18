@@ -25,6 +25,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
     build artifact. It never modifies repository code; its optional agent-interpretation
     step is disabled by default and defines no credentials. Minimal per-job permissions,
     `persist-credentials: false`, and full-SHA-pinned actions throughout.
+  - The shared validator is now consumed as the deterministic `engineering-loop-schemas v0.1.2`
+    bundle pinned to `0459d61b7b1d4e7b46709e6d3895770553e6fab0`. Its `manifest.json` records
+    source provenance, file sizes, SHA-256 hashes, and the declared package-import adaptation.
+    The mandatory `loop-schema-vendor` quality check validates the bundle offline, and regression
+    tests prove that manual tampering is rejected. The earlier `75a63eef...` integration described
+    below was an intermediate pre-release state and is superseded by this published bundle.
 
 ### Fixed
 

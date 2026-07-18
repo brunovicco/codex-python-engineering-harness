@@ -1,5 +1,71 @@
 # Validation record
 
+## Current validation — Phase 0-1
+
+Validated on 2026-07-18 for the report-only Evidence-Gated Engineering Loop foundation.
+
+### Identity and provenance
+
+- Published repository commit:
+  `59b29429c4b50984e2ceffd9f411ef2028a72e8b`.
+- Harness generator version: `1.2.1` (`bootstrap.py` `HARNESS_VERSION`).
+- Shared schemas: `v0.1.2` at
+  `0459d61b7b1d4e7b46709e6d3895770553e6fab0`.
+- Final integration: pull request
+  [#8](https://github.com/brunovicco/codex-python-engineering-harness/pull/8).
+- The pull-request quality run validated source head
+  `ed0f5bd6827bba8cfef7948bb339b694dbfb62d5` before GitHub recreated the commit through squash
+  merge:
+  <https://github.com/brunovicco/codex-python-engineering-harness/actions/runs/29660517744>.
+
+### Results
+
+- Repository quality gate: passed.
+- Regression tests: 70 passed.
+- Ruff lint and format check: passed.
+- Strict Mypy: passed.
+- Bandit medium/high findings: none.
+- `pip-audit`: no known vulnerabilities.
+- `loop-schema-vendor`: passed for `v0.1.2`.
+- Positive bundle-integrity test: passed.
+- Manual-tampering detection test: passed.
+- Legacy provider-reference regression test: passed.
+- Harness self-evaluation: `Overall: PASS`.
+- Complete quality gates passed for all six profile/governance combinations:
+  - `service-none`;
+  - `service-agentic`;
+  - `library-none`;
+  - `library-agentic`;
+  - `workspace-none`;
+  - `workspace-agentic`.
+
+### Scope and limitations
+
+This validation covers Phase 0-1 only. The repository can validate contracts, execute existing
+quality gates, verify vendored-schema integrity, render temporary profiles, and produce reports.
+It does not provide a loop runner, state machine, evaluator runtime, autonomous candidate creation,
+candidate promotion, merge, or deployment.
+
+The builder's report remains non-authoritative. A quality gate is the technical authority, and
+human review remains required before any promotion decision.
+
+The self-evaluation workflow still uses the previously pinned `setup-uv` action while the main
+quality workflow uses the newer approved pin. Aligning those pins is CI maintenance and should be
+performed in a separate change from this documentation record.
+
+### Reproduce the Phase 0-1 validation
+
+```bash
+uv lock --check
+uv sync --frozen --all-groups
+uv run python scripts/quality_gate.py
+uv run python scripts/loop_self_evaluation.py \
+  --output-dir build/loop-self-evaluation
+git diff --check
+```
+
+## Previous validation — 2026-07-16
+
 Validated on 2026-07-16 (America/Sao_Paulo) with Python 3.12 for the harness and Python 3.13 for
 generated profiles.
 
