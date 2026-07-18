@@ -26,6 +26,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
     step is disabled by default and defines no credentials. Minimal per-job permissions,
     `persist-credentials: false`, and full-SHA-pinned actions throughout.
 
+### Fixed
+
+- The vendored `_vendor_loop_schemas/models.py` failed CI lint on the generated-profiles
+  Python 3.14 job: ruff's `UP037` flagged the module's load-bearing quoted self-referencing
+  `from_dict` return annotations (e.g. `-> "Budgets"`) as removable, because it assumes PEP
+  649 lazy-annotation semantics whenever the caller's own `target-version` is `py314` --
+  correct in isolation, wrong here since the quotes are required on Python 3.12/3.13, which
+  this vendored file also has to support. Re-vendored from
+  `brunovicco/engineering-loop-schemas@75a63eef269fd995128ab39c89e551fe58a27bf7`, which
+  suppresses `UP037` via a `[tool.ruff.lint.per-file-ignores]` entry rather than an inline
+  `# noqa` (an inline noqa becomes a *second* failure, `RUF100` unused-directive, on
+  3.12/3.13, where `UP037` never fires); added the matching per-file-ignore to
+  `template/pyproject.toml`, `profiles/library/pyproject.toml`, and
+  `profiles/workspace/pyproject.toml` (the `service` profile has no override and inherits
+  the template's). Also dropped a stray `# noqa: PLC0415` on `validate_contract.py`'s lazy
+  `import yaml`, unused everywhere this vendors to (no consumer selects ruff's `PL` rules)
+  and itself flagged by `RUF100` once `RUF` is enabled. Verified by rendering all three
+  profiles at Python 3.12/3.13/3.14 and re-running the full test suite and
+  `loop_self_evaluation.py`.
+
 ### Security
 
 - Close the sensitive-file **read** gap: `validate_bash.py` (Bash/`exec_command`) and

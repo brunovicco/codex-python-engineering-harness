@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # Vendored from brunovicco/engineering-loop-schemas
-# @ 422a8c44de9824e68387f661998712bb5697023b (v0.1.0).
+# @ 75a63eef269fd995128ab39c89e551fe58a27bf7 (v0.1.0, includes the UP037/RUF100 lint fixes: a
+# per-file-ignore for the load-bearing quoted return annotations, and
+# removal of a stray noqa that was itself flagged once RUF is enabled).
 # No published tag exists yet as of this vendoring; pinned to the commit
 # above. Do not edit by hand -- re-vendor from the source repository
 # instead. See docs/LOOPS.md for how this fits into the Phase 0-1
@@ -145,7 +147,7 @@ def load_document(path: Path) -> dict[str, Any]:
     text = path.read_text(encoding="utf-8")
     if path.suffix in {".yaml", ".yml"}:
         try:
-            import yaml  # optional, YAML-only dependency
+            import yaml  # local import: optional, YAML-only dependency
         except ImportError as exc:
             raise ContractValidationError(
                 f"{path}: reading YAML contracts requires PyYAML "

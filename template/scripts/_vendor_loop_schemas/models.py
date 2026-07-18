@@ -1,9 +1,16 @@
 # Vendored from brunovicco/engineering-loop-schemas
-# @ 422a8c44de9824e68387f661998712bb5697023b (v0.1.0).
+# @ 75a63eef269fd995128ab39c89e551fe58a27bf7 (v0.1.0, includes the UP037/RUF100 lint fixes: a
+# per-file-ignore for the load-bearing quoted return annotations, and
+# removal of a stray noqa that was itself flagged once RUF is enabled).
 # No published tag exists yet as of this vendoring; pinned to the commit
 # above. Do not edit by hand -- re-vendor from the source repository
 # instead. See docs/LOOPS.md for how this fits into the Phase 0-1
 # report-only loop foundation.
+# Adapted for vendoring: this directory is named `_vendor_loop_schemas`
+# (not `loop_schemas`) so it does not itself match the `scripts/loop_*`
+# out-of-scope-loop-path denylist in protect_sensitive_files.py; the
+# `from loop_schemas...` imports were changed to
+# `from _vendor_loop_schemas...` to match. No other lines were edited.
 """Typed dataclasses corresponding to schemas/*.schema.json.
 
 Deliberately stdlib-only (dataclasses + typing) so this module -- and
@@ -18,6 +25,21 @@ tests/test_models_match_schemas.py.
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+# Every `from_dict` classmethod below returns its own enclosing class by name
+# in quotes (e.g. `-> "Budgets"`), which is load-bearing, not stylistic: the
+# class name is not yet bound in any scope while its own class body is still
+# executing, so an unquoted self-reference raises NameError at import time on
+# any interpreter without PEP 649 lazy annotations (the default only from
+# Python 3.14 on -- this project supports 3.12-3.14). This module deliberately
+# avoids postponed evaluation of annotations (no `__future__` import) so it
+# stays safe to vendor verbatim into codebases that ban that import outright
+# (see README.md). Ruff's UP037 rule assumes PEP 649 semantics whenever a
+# caller's own target-version is 3.14 and will flag these quotes as removable
+# in that view alone -- do not remove them. Suppress UP037 for this file via
+# [tool.ruff.lint.per-file-ignores] in the consuming project's pyproject.toml
+# instead of an inline noqa: an inline noqa becomes an *unused-directive*
+# error (RUF100) on 3.12/3.13, where UP037 never fires in the first place.
+# See README.md's vendoring section for the exact config line.
 TriggerType = Literal["manual", "schedule", "event"]
 VerdictStatus = Literal["PASS", "NEEDS_WORK", "ESCALATE"]
 FinalState = Literal[
