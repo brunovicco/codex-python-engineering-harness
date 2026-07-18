@@ -1,0 +1,29 @@
+{
+  "adaptations": [
+    {
+      "file": "validate_contract.py",
+      "from": "from loop_schemas.models import Contract",
+      "to": "from _vendor_loop_schemas.models import Contract"
+    }
+  ],
+  "files": {
+    "__init__.py": {
+      "sha256": "37a1ec4b860278188c30e64a66399a75a6f66257631db8012bffaa707aedc8b4",
+      "size_bytes": 333
+    },
+    "models.py": {
+      "sha256": "0683ca41aad2b185570b5d85ba6953fd6bcbfcd45930cda75983531c675f0b4e",
+      "size_bytes": 10785
+    },
+    "validate_contract.py": {
+      "sha256": "f089b0d2ca642c5048ed9965729c614036a65bfea764ddaeaf022bcd6fe2e672",
+      "size_bytes": 7323
+    }
+  },
+  "manifest_version": "1.0.0",
+  "source": {
+    "commit": "0459d61b7b1d4e7b46709e6d3895770553e6fab0",
+    "repository": "brunovicco/engineering-loop-schemas",
+    "version": "0.1.2"
+  }
+}
