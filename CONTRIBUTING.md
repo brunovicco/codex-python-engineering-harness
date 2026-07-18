@@ -1,5 +1,10 @@
 # Contributing
 
+> **Feature freeze.** This project's shared core is in feature freeze while it is being
+> consolidated with its sibling harness into a single, agent-agnostic unified harness.
+> During this period, only bug fixes, security fixes, and documentation corrections are
+> accepted; please do not propose new features, new agents, skills, or capabilities.
+
 This repository distributes generated project files from `template/` and `profiles/` and an
 installable plugin from `plugins/python-engineering-harness/`. Keep duplicated behavior synchronized
 across those outputs.

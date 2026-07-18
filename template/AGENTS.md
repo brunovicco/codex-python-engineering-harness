@@ -13,6 +13,7 @@ Keep these facts and the commands below current as the project evolves.
 ## Required commands
 
 ```bash
+uv lock --check
 uv sync --frozen --all-groups
 uv run ruff check .
 uv run ruff format --check .

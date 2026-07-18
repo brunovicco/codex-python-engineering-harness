@@ -26,6 +26,9 @@ jobs:
       - name: Install Python
         run: uv python install
 
+      - name: Verify lockfile is up to date
+        run: uv lock --check
+
       - name: Install dependencies, including observability tests
         run: uv sync --frozen --all-groups --extra observability
 
