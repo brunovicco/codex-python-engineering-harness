@@ -74,6 +74,9 @@ jobs:
       - name: Reject whitespace errors
         run: git diff --check
 
+      - name: Check sibling-harness parity manifest
+        run: python scripts/parity_check.py
+
   generated-profiles:
     strategy:
       fail-fast: false
