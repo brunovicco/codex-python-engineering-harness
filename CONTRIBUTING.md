@@ -40,6 +40,23 @@ evaluation order requires it.
 Prefer changing the canonical template first, then port the equivalent plugin or profile change.
 Regression tests verify duplicated security scripts remain identical.
 
+## Language policy
+
+English is the canonical language for all documentation. The following documents must also ship a
+`.pt-BR.md` sibling, updated in the same change: `docs/LOOPS.md`, `docs/UPGRADING.md`, and
+`docs/ENTERPRISE_ROLLOUT.md`. Other documents may be translated opportunistically, but a stale
+translation is worse than none: if you cannot update the pair, say so in the pull request. The
+sibling `claude-python-engineering-harness` follows the same policy so both harnesses keep the
+same language matrix.
+
+## Sibling-harness parity
+
+This harness and `claude-python-engineering-harness` share a parity manifest
+(`parity-manifest.json`, byte-identical in both repositories) checked in CI by
+`scripts/parity_check.py`. When adding or removing a parity-relevant artifact, update the manifest
+in both repositories in the same change, or declare an intentional divergence with a reason in
+this repository's `parity-exceptions.json`.
+
 ## Pull requests
 
 - Keep changes focused and link the relevant issue when one exists.

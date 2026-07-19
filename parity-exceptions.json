@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "id": "profile-library-ci-overlay",
+      "reason": "This harness ships a profiles/library CI overlay because its template workflow differs per profile; the Claude sibling's library profile inherits the template workflow unchanged. Documented in the sibling's docs/ARCHITECTURE.md."
+    },
+    {
+      "id": "observability-adapter",
+      "reason": "LLM observability starter is an OpenTelemetry adapter (--extra observability) because Codex exposes native OTel export; the Claude sibling ships Langfuse metadata-only tracing instead. Documented in the sibling's docs/ARCHITECTURE.md."
+    }
+  ]
+}

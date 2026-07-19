@@ -113,7 +113,11 @@ uv run python scripts/quality_gate.py
 ```
 
 See `VALIDATION.md` for the latest verification record and `SOURCES.md` for official OpenAI
-references used by this port. See `docs/VERSIONING.md` for artifact lifecycles,
-`docs/UPGRADING.md` for non-destructive upgrades, `CHANGELOG.md` for release history, and
+references used by this port. See `docs/EVALUATION.md` for the reproducible evaluation guide and
+acceptance criteria, `docs/VERSIONING.md` for artifact lifecycles, `docs/UPGRADING.md` for
+non-destructive upgrades (também em português: `docs/UPGRADING.pt-BR.md`),
+`docs/ENTERPRISE_ROLLOUT.md` for rollout guidance, `CHANGELOG.md` for release history, and
 `SECURITY.md` for private vulnerability reporting. Community participation is covered by
-`CONTRIBUTING.md`, `SUPPORT.md`, and `CODE_OF_CONDUCT.md`.
+`CONTRIBUTING.md`, `SUPPORT.md`, and `CODE_OF_CONDUCT.md`. Structural parity with the sibling
+`claude-python-engineering-harness` is checked in CI by `scripts/parity_check.py` against
+`parity-manifest.json`.

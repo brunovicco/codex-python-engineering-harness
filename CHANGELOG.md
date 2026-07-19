@@ -10,6 +10,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- Documentation parity with the sibling `claude-python-engineering-harness`:
+  `docs/EVALUATION.md` (reproducible evaluation guide and acceptance criteria),
+  `docs/ENTERPRISE_ROLLOUT.md` (ownership, distribution, MCP rollout, and metrics), and pt-BR
+  translations `docs/LOOPS.pt-BR.md`, `docs/UPGRADING.pt-BR.md`, and
+  `docs/ENTERPRISE_ROLLOUT.pt-BR.md`, under the language policy now documented in
+  `CONTRIBUTING.md`.
+- `scripts/parity_check.py` with `parity-manifest.json` and `parity-exceptions.json`: a
+  deterministic check, shared with the sibling `claude-python-engineering-harness`, that fails CI
+  when a parity-required artifact is missing and is not declared as an intentional divergence.
+  Wired into CI.
 - Phase 0-1 (report-only) Evidence-Gated Engineering Loop foundation, see `docs/LOOPS.md`:
   - `.loop/**` and `scripts/loop_*` are now denylisted for agent writes in
     `protect_sensitive_files.py` (template and plugin), so an agent cannot silently build
