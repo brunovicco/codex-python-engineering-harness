@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-07-20
+
 ### Added
 
 - Documentation parity with the sibling `claude-python-engineering-harness`:
@@ -100,5 +102,6 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - Dependabot updates for GitHub Actions and Python dependencies.
 - Five-minute evaluation and profile comparison.
 
-[Unreleased]: https://github.com/brunovicco/codex-python-engineering-harness/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/brunovicco/codex-python-engineering-harness/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/brunovicco/codex-python-engineering-harness/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/brunovicco/codex-python-engineering-harness/releases/tag/v1.2.0
