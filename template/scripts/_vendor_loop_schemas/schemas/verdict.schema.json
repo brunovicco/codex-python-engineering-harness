@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/brunovicco/engineering-loop-schemas/main/schemas/verdict.schema.json",
+  "title": "Evidence-Gated Engineering Loop Verdict",
+  "description": "The single, mechanically derived outcome of grading trusted evidence against a contract. A verdict binds the candidate, contract, and evidence bytes used to reach the decision.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "run_id",
+    "contract_id",
+    "oid_algorithm",
+    "candidate_oid",
+    "contract_sha256",
+    "evidence_sha256",
+    "status",
+    "justification",
+    "final_state",
+    "decided_at"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Verdict wire-format version.",
+      "const": "2.0.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contract_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "oid_algorithm": {
+      "type": "string",
+      "enum": ["sha1", "sha256"]
+    },
+    "candidate_oid": {
+      "type": "string",
+      "description": "Complete Git object ID of the candidate graded."
+    },
+    "contract_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the canonical contract bytes used for evaluation."
+    },
+    "evidence_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 of the RFC 8785/JCS canonical evidence document used for this verdict."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "NEEDS_WORK", "ESCALATE"]
+    },
+    "justification": {
+      "type": "object",
+      "description": "Structured explanation of the status, keyed by hard-gate name plus an optional summary.",
+      "additionalProperties": false,
+      "required": ["gate_results"],
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "gate_results": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["gate", "passed"],
+            "properties": {
+              "gate": {
+                "type": "string",
+                "minLength": 1
+              },
+              "passed": {
+                "type": "boolean"
+              },
+              "detail": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "final_state": {
+      "type": "string",
+      "description": "One of the documented loop-run final states.",
+      "enum": [
+        "SUCCEEDED",
+        "NO_OP",
+        "NO_PROGRESS",
+        "VERIFY_FAILED",
+        "POLICY_BLOCKED",
+        "BUDGET_EXCEEDED",
+        "ESCALATED",
+        "INFRA_FAILED"
+      ]
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "oid_algorithm": {
+            "const": "sha1"
+          }
+        },
+        "required": ["oid_algorithm"]
+      },
+      "then": {
+        "properties": {
+          "candidate_oid": {
+            "pattern": "^[0-9a-f]{40}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "oid_algorithm": {
+            "const": "sha256"
+          }
+        },
+        "required": ["oid_algorithm"]
+      },
+      "then": {
+        "properties": {
+          "candidate_oid": {
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "PASS"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "final_state": {
+            "enum": ["SUCCEEDED", "NO_OP"]
+          },
+          "justification": {
+            "properties": {
+              "gate_results": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "passed": {
+                        "const": false
+                      }
+                    },
+                    "required": ["passed"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "NEEDS_WORK"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "final_state": {
+            "enum": [
+              "NO_PROGRESS",
+              "VERIFY_FAILED",
+              "POLICY_BLOCKED",
+              "BUDGET_EXCEEDED"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "ESCALATE"
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "final_state": {
+            "enum": ["ESCALATED", "INFRA_FAILED"]
+          }
+        }
+      }
+    }
+  ]
+}

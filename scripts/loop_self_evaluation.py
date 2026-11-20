@@ -114,6 +114,8 @@ def render_and_gate_project(
     ]
     for overlay in governance_overlays:
         render.extend(("--governance-overlay", overlay))
+    if governance_profile == "agentic":
+        render.append("--loop")
 
     render_result = run_command(f"render:{label}", render, cwd=ROOT)
     if not render_result.passed:

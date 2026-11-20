@@ -9,6 +9,12 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+LOOP_CONTRACT_SUFFIXES = frozenset({".json", ".yaml", ".yml"})
+MISSING_LOOP_LAYER = (
+    "import sys; sys.exit('Loop contracts exist under .loop/contracts/ but the loop layer is "
+    "not installed. Re-render the harness with --loop so they are validated.')"
+)
+
 
 @dataclass(frozen=True, slots=True)
 class Check:
@@ -51,6 +57,24 @@ def expand_roots(root: Path, patterns: list[str]) -> list[str]:
     return sorted(found)
 
 
+def loop_checks(root: Path) -> list[Check]:
+    """Return loop checks when the opt-in layer is installed, and fail on unvalidated contracts."""
+    if (root / "scripts" / "validate_loop_contracts.py").is_file():
+        return [
+            Check(
+                "loop-schema-vendor",
+                (sys.executable, "scripts/validate_loop_schema_vendor.py"),
+            ),
+            Check("loop-contracts", (sys.executable, "scripts/validate_loop_contracts.py")),
+        ]
+    contracts = root / ".loop" / "contracts"
+    if contracts.is_dir() and any(
+        path.is_file() and path.suffix in LOOP_CONTRACT_SUFFIXES for path in contracts.rglob("*")
+    ):
+        return [Check("loop-contracts", (sys.executable, "-c", MISSING_LOOP_LAYER))]
+    return []
+
+
 def configured_checks(root: Path) -> list[Check]:
     """Build commands from project-owned source and test roots."""
     settings = load_settings(root)
@@ -67,11 +91,7 @@ def configured_checks(root: Path) -> list[Check]:
         Check("architecture", (sys.executable, "scripts/validate_architecture.py")),
         Check("mcp", (sys.executable, "scripts/validate_mcp_config.py")),
         Check("governance", (sys.executable, "scripts/governance_gate.py")),
-        Check(
-            "loop-schema-vendor",
-            (sys.executable, "scripts/validate_loop_schema_vendor.py"),
-        ),
-        Check("loop-contracts", (sys.executable, "scripts/validate_loop_contracts.py")),
+        *loop_checks(root),
     ]
     checks.append(Check("typing", ("mypy", *type_roots) if type_roots else ()))
     checks.append(Check("tests", ("pytest",) if test_roots else ()))

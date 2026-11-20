@@ -2,28 +2,62 @@
   "adaptations": [
     {
       "file": "validate_contract.py",
+      "from": "from loop_schemas._stdlib_jsonschema import",
+      "to": "from _vendor_loop_schemas._stdlib_jsonschema import"
+    },
+    {
+      "file": "validate_contract.py",
       "from": "from loop_schemas.models import Contract",
       "to": "from _vendor_loop_schemas.models import Contract"
+    },
+    {
+      "file": "validate_contract.py",
+      "from": "from loop_schemas.schema_resources import",
+      "to": "from _vendor_loop_schemas.schema_resources import"
     }
   ],
   "files": {
     "__init__.py": {
-      "sha256": "37a1ec4b860278188c30e64a66399a75a6f66257631db8012bffaa707aedc8b4",
-      "size_bytes": 333
+      "sha256": "e2a45b0fb51ea289650e816c1c9b1f13a15641e60068341e53df212457857463",
+      "size_bytes": 331
+    },
+    "_stdlib_jsonschema.py": {
+      "sha256": "8df618a595ccb3f294e0ae58ae01d396004a15b61891aade64c997171c6c22ce",
+      "size_bytes": 11003
     },
     "models.py": {
-      "sha256": "0683ca41aad2b185570b5d85ba6953fd6bcbfcd45930cda75983531c675f0b4e",
-      "size_bytes": 10785
+      "sha256": "be9b08d12e1a44bda7009c239e5d9ade3ecc866a9559ecb94eee535207ba8bb6",
+      "size_bytes": 11495
+    },
+    "schema_resources.py": {
+      "sha256": "303e02a314789a40fe0460afe0b14aac33d86a6c1add8ca60532502c2df274db",
+      "size_bytes": 1885
+    },
+    "schemas/builder-result.schema.json": {
+      "sha256": "1dc5ffcf65590c3c09a25b076cc3353623253e0ab7838213f534b9d7e605eab9",
+      "size_bytes": 3394
+    },
+    "schemas/contract.schema.json": {
+      "sha256": "4f3de57781f5c75608750f334f44cea155b3d961a40db50d0c9aa233ff0941d1",
+      "size_bytes": 6625
+    },
+    "schemas/evidence.schema.json": {
+      "sha256": "94151e58ccb57c927f013d1f0424c5ff09f92e7e2b82512f150fc8960cb891cb",
+      "size_bytes": 7987
+    },
+    "schemas/verdict.schema.json": {
+      "sha256": "92c6e45e6e64b32405e9ce0f501b86f44a5710b70112d380f44ecbd61b019bfc",
+      "size_bytes": 5103
     },
     "validate_contract.py": {
-      "sha256": "f089b0d2ca642c5048ed9965729c614036a65bfea764ddaeaf022bcd6fe2e672",
-      "size_bytes": 7323
+      "sha256": "2202f24cc523a38b3f713c3ca3eaf711ffa9e5af865903486922638371a2d611",
+      "size_bytes": 10411
     }
   },
-  "manifest_version": "1.0.0",
+  "manifest_version": "2.0.0",
   "source": {
-    "commit": "0459d61b7b1d4e7b46709e6d3895770553e6fab0",
+    "commit": "5340d491b46f4fabc967c81bb3e5204104b6b5d8",
     "repository": "brunovicco/engineering-loop-schemas",
-    "version": "0.1.2"
+    "version": "0.3.0"
   }
 }

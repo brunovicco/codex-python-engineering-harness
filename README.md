@@ -54,6 +54,10 @@ Governance profiles are `none`, `baseline`, `ai-assisted`, and `agentic`. Availa
 `dora`, `iso-iec-42001`, and `nist-sp-800-53`. Framework mappings describe control support and do
 not claim organizational compliance or certification.
 
+The Evidence-Gated Engineering Loop layer (vendored `engineering-loop-schemas` validators and the
+`loop-schema-vendor` and `loop-contracts` checks) is also opt-in. Add `--loop` when the project
+will hold loop contracts under `.loop/contracts/`; see [loops](docs/LOOPS.md).
+
 ## Five-minute evaluation
 
 Requirements: Python 3.12 or newer and `uv`.

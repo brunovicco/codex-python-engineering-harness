@@ -27,10 +27,18 @@ disso. Concretamente, a partir desta integração:
   em um projeto gerado). Espera-se que apenas um humano, editando fora de
   uma chamada de ferramenta do agente, coloque um contrato real em
   `.loop/contracts/`.
-- A verificação `loop-contracts` do `scripts/quality_gate.py` valida
-  qualquer contrato encontrado em `.loop/contracts/**` contra os schemas
-  acima. Sem contratos presentes -- o estado esperado hoje -- ela é um
-  no-op documentado.
+- A camada de loop é **opcional (opt-in)**. Um projeto renderizado com
+  `bootstrap.py --loop` recebe os schemas vendorizados e as verificações
+  `loop-schema-vendor` e `loop-contracts`; uma renderização padrão não recebe
+  nenhum deles. A escolha fica registrada como `loop` no `.harness.json`, e um
+  upgrade mantém a camada de um projeto que já a tinha (veja "Habilitando a
+  camada de loop").
+- Com a camada habilitada, a verificação `loop-contracts` do
+  `scripts/quality_gate.py` valida qualquer contrato encontrado em
+  `.loop/contracts/**` contra os schemas acima; sem contratos presentes, ela é
+  um no-op documentado. Sem a camada, um contrato em `.loop/contracts/` falha
+  tanto o quality gate quanto o `bootstrap.py --check`, para que nenhum
+  contrato fique sem validação silenciosamente.
 - O workflow de CI de autoavaliação (veja `.github/workflows/` do
   repositório), que renderiza cada perfil e reporta os resultados dos
   gates, é ele próprio somente-relatório: nunca modifica código do
@@ -48,7 +56,8 @@ espelhando o README do `engineering-loop-schemas`:
    como não-autoritativo.
 2. **Nível de conclusão (completion-level)** -- uma execução completa:
    tentativa(s) do builder, coleta mecânica de `evidence` (comandos com
-   hash, saída com hash, `baseline_sha`/`candidate_sha` exatos), e um
+   hash, saída com hash, repositório, algoritmo de OID e
+   `baseline_oid`/`candidate_oid` completos), e um
    `verdict` derivado ao avaliar essa evidência contra os
    `acceptance.hard_gates` do contrato.
 3. **Nível operacional (operational-level)** -- a saúde do próprio loop ao
@@ -65,13 +74,15 @@ espelhando o README do `engineering-loop-schemas`:
   nomeadas que o `quality_gate.py` deste harness já implementa: `lock`,
   `lint`, `format`, `typing`, `tests`, `security`, `dependencies`,
   `architecture`, `mcp`, `governance`.
-  Verificações obrigatórias de infraestrutura, incluindo `loop-schema-vendor` e
-  `loop-contracts`, protegem proveniência, integridade e validação contratual em todas as
-  execuções; elas não são comandos arbitrários selecionáveis pelo builder.
-- A evidência é vinculada a commits exatos (`baseline_sha`,
-  `candidate_sha`) e a um ambiente com hash (`uv_lock_sha256`), de modo que
-  um veredito sempre possa ser rastreado até exatamente o que rodou contra
-  exatamente qual código.
+  Quando a camada de loop está habilitada, verificações obrigatórias de
+  infraestrutura, `loop-schema-vendor` e `loop-contracts`, protegem
+  proveniência, integridade e validação contratual em todas as execuções; elas
+  não são comandos arbitrários selecionáveis pelo builder.
+- A evidência é vinculada ao repositório, a object IDs completos do Git
+  (`baseline_oid`, `candidate_oid`), aos hashes do contrato, da política e da
+  árvore candidata, ao `argv` de comando sem shell e a um ambiente de execução
+  com hash, de modo que um veredito sempre possa ser rastreado até exatamente
+  o que rodou contra exatamente qual código (formato de evidência `2.0.0`).
 - Os hooks (`protect_sensitive_files.py`, `validate_bash.py`,
   `guard_mcp.py`) são defesa em profundidade, não orquestração. Eles
   impedem que um agente exceda silenciosamente o escopo declarado desta
@@ -96,12 +107,15 @@ Toda execução concluída se resolve em exatamente um estado final
 ## Vendoring
 
 `template/scripts/_vendor_loop_schemas/` é um bundle determinístico renderizado a partir do
-`engineering-loop-schemas v0.1.2`, fixado no commit completo
-`0459d61b7b1d4e7b46709e6d3895770553e6fab0`. Seu `manifest.json` registra repositório de origem,
-versão, commit, tamanhos, hashes SHA-256 e a adaptação de import declarada.
+`engineering-loop-schemas v0.3.0`, fixado no commit completo
+`5340d491b46f4fabc967c81bb3e5204104b6b5d8`, com o `scripts/render_vendor_bundle.py` daquele
+repositório. Seu `manifest.json` (formato de manifesto `2.0.0`) registra repositório de origem,
+versão, commit e o tamanho e o hash SHA-256 de cada fonte Python e dos quatro JSON Schemas
+canônicos, além de cada adaptação de import declarada. O `loop-schema-vendor` também rejeita
+qualquer arquivo no bundle que o manifesto não declare.
 
-O bundle não é uma cópia byte a byte. Durante a renderização, o import de pacote em
-`validate_contract.py` muda de `loop_schemas` para `_vendor_loop_schemas`; isso isola o pacote
+O bundle não é uma cópia byte a byte. Durante a renderização, os imports de pacote em
+`validate_contract.py` mudam de `loop_schemas` para `_vendor_loop_schemas`; isso isola o pacote
 vendorizado e evita colisão com o namespace protegido `scripts/loop_*`. A adaptação está explícita
 no manifesto e coberta por testes de renderização determinística, integridade e adulteração. O
 gate `loop-schema-vendor` verifica o bundle offline em cada quality gate de projeto gerado.
@@ -115,6 +129,25 @@ deliberadamente **não** foi adicionado como dependência do harness por
 esta integração (o núcleo compartilhado está em congelamento de features --
 veja `CONTRIBUTING.md`); se um humano quiser validar contratos YAML
 localmente, deve adicionar o PyYAML ao próprio projeto.
+
+## Habilitando a camada de loop
+
+Renderize um projeto novo com a camada:
+
+```bash
+python3 bootstrap.py --name payments-api --package payments_api \
+  --target ../payments-api --loop
+```
+
+Adicione-a a um projeto existente com `--merge --loop`, ou remova-a com `--merge --no-loop`. Sem
+nenhuma das flags, o `--merge` mantém a escolha anterior; um projeto renderizado antes de a camada
+se tornar opcional, cujo `.harness.json` não tem a chave `loop` mas rastreia o bundle vendorizado,
+mantém a camada. Desabilitar nunca apaga arquivos: o bootstrap lista os arquivos de loop gerados
+anteriormente que foram mantidos, e o quality gate continua executando suas verificações até que
+um humano os remova.
+
+A camada apenas valida contratos; ela não executa um loop. A denylist de escrita em `.loop/**` e
+`scripts/loop_*` dos hooks vale com ou sem a camada habilitada.
 
 ## Fora do escopo desta integração
 

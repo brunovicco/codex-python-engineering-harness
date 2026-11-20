@@ -1229,6 +1229,173 @@ class LoopFoundationTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("Invalid loop contract", result.stderr)
 
+    @staticmethod
+    def _render(target: Path, *extra: str) -> tuple[int, str]:
+        """Render a service project quietly and return the exit code and stdout."""
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = bootstrap.main(
+                [
+                    "--name",
+                    "loop-sample",
+                    "--package",
+                    "loop_sample",
+                    "--target",
+                    str(target),
+                    *extra,
+                ]
+            )
+        return result, output.getvalue()
+
+    @staticmethod
+    def _gate_check_names(target: Path) -> set[str]:
+        module = load_module("rendered_quality_gate", target / "scripts/quality_gate.py")
+        return {check.name for check in module.configured_checks(target)}
+
+    def test_loop_layer_is_not_rendered_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "project"
+            result, _ = self._render(target)
+            self.assertEqual(result, 0)
+            for relative in bootstrap.LOOP_PATHS:
+                with self.subTest(path=relative):
+                    self.assertFalse((target / relative).exists())
+            manifest = json.loads((target / ".harness.json").read_text(encoding="utf-8"))
+            self.assertIs(manifest["loop"], False)
+            self.assertFalse(any(bootstrap.is_loop_path(Path(name)) for name in manifest["files"]))
+            names = self._gate_check_names(target)
+            self.assertNotIn("loop-contracts", names)
+            self.assertNotIn("loop-schema-vendor", names)
+            self.assertEqual(bootstrap.check_target(target), [])
+
+    def test_loop_flag_renders_a_verified_layer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "project"
+            result, output = self._render(target, "--loop")
+            self.assertEqual(result, 0)
+            self.assertIn("loop: on", output)
+            for relative in bootstrap.LOOP_PATHS:
+                with self.subTest(path=relative):
+                    self.assertTrue((target / relative).exists())
+            manifest = json.loads((target / ".harness.json").read_text(encoding="utf-8"))
+            self.assertIs(manifest["loop"], True)
+            self.assertIn(bootstrap.LOOP_MARKER, manifest["files"])
+            self.assertTrue(
+                {"loop-contracts", "loop-schema-vendor"} <= self._gate_check_names(target)
+            )
+            vendor = subprocess.run(
+                [sys.executable, "scripts/validate_loop_schema_vendor.py"],
+                cwd=target,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(vendor.returncode, 0, vendor.stderr)
+            self.assertIn("0.3.0", vendor.stdout)
+            self.assertEqual(bootstrap.check_target(target), [])
+
+    def test_upgrade_keeps_the_loop_layer_of_a_legacy_project(self) -> None:
+        """Manifests from before the opt-in carry no loop key but track the vendored bundle."""
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "project"
+            self.assertEqual(self._render(target, "--loop")[0], 0)
+            manifest_path = target / ".harness.json"
+            legacy = json.loads(manifest_path.read_text(encoding="utf-8"))
+            del legacy["loop"]
+            manifest_path.write_text(json.dumps(legacy), encoding="utf-8")
+            self.assertTrue(bootstrap.resolve_loop(None, legacy))
+
+            result, output = self._render(target, "--merge")
+
+            self.assertEqual(result, 0)
+            self.assertIn("loop: on", output)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertIs(manifest["loop"], True)
+            self.assertEqual(bootstrap.check_target(target), [])
+
+    def test_disabling_the_loop_layer_reports_files_left_in_place(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "project"
+            self.assertEqual(self._render(target, "--loop")[0], 0)
+
+            result, output = self._render(target, "--merge", "--no-loop")
+
+            self.assertEqual(result, 0)
+            self.assertIn("previously generated loop files were left in place", output)
+            self.assertIn(bootstrap.LOOP_MARKER, output)
+            manifest = json.loads((target / ".harness.json").read_text(encoding="utf-8"))
+            self.assertIs(manifest["loop"], False)
+            self.assertNotIn(bootstrap.LOOP_MARKER, manifest["files"])
+            self.assertTrue((target / bootstrap.LOOP_MARKER).is_file())
+
+    def test_check_rejects_loop_contracts_without_the_layer(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "project"
+            self.assertEqual(self._render(target)[0], 0)
+            contracts = target / ".loop" / "contracts"
+            contracts.mkdir(parents=True)
+            (contracts / "example.json").write_text(
+                json.dumps(self.VALID_CONTRACT), encoding="utf-8"
+            )
+
+            errors = bootstrap.check_target(target)
+            self.assertTrue(any("loop layer is disabled" in error for error in errors), errors)
+
+            checks = {
+                check.name: check
+                for check in load_module(
+                    "unvalidated_quality_gate", target / "scripts/quality_gate.py"
+                ).configured_checks(target)
+            }
+            self.assertNotIn("loop-schema-vendor", checks)
+            gate = subprocess.run(
+                checks["loop-contracts"].command,
+                cwd=target,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            self.assertNotEqual(gate.returncode, 0)
+            self.assertIn("--loop", gate.stderr)
+
+    def test_check_mode_rejects_a_loop_selection(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            contextlib.redirect_stderr(io.StringIO()),
+            self.assertRaises(SystemExit),
+        ):
+            bootstrap.parse_args(["--target", directory, "--check", "--loop"])
+
+    def test_validator_rejects_contracts_that_v012_accepted(self) -> None:
+        """v0.3.0 closes the gaps the previously vendored v0.1.2 validator left open."""
+        unsafe = {
+            "unknown property": {**self.VALID_CONTRACT, "unexpected": True},
+            "arbitrary version": {**self.VALID_CONTRACT, "version": "9.9.9"},
+            "human review disabled": {
+                **self.VALID_CONTRACT,
+                "human_review": {"required": False},
+            },
+        }
+        for label, contract in unsafe.items():
+            with self.subTest(case=label), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                script = self._stage_loop_scripts(root)
+                contracts_dir = root / ".loop" / "contracts"
+                contracts_dir.mkdir(parents=True)
+                (contracts_dir / "unsafe.json").write_text(json.dumps(contract), encoding="utf-8")
+                result = subprocess.run(
+                    [sys.executable, str(script)],
+                    cwd=root,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=15,
+                )
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn("Invalid loop contract", result.stderr)
+
 
 class SelfEvaluationWorkflowTests(unittest.TestCase):
     """Cover the report-only self-evaluation workflow (B3)."""

@@ -17,12 +17,20 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-HARNESS_VERSION = "1.2.1"
+HARNESS_VERSION = "1.3.0"
 DEFAULT_BRANCH = "main"
 PROFILES = ("service", "library", "workspace")
 GOVERNANCE_CATALOG_VERSION = "2026.1"
 GOVERNANCE_PROFILES = ("none", "baseline", "ai-assisted", "agentic")
 GOVERNANCE_OVERLAYS = ("dora", "iso-iec-42001", "nist-sp-800-53")
+# Opt-in Evidence-Gated Engineering Loop layer: rendered only with --loop (see docs/LOOPS.md).
+LOOP_PATHS = (
+    "scripts/_vendor_loop_schemas",
+    "scripts/validate_loop_contracts.py",
+    "scripts/validate_loop_schema_vendor.py",
+)
+LOOP_MARKER = "scripts/_vendor_loop_schemas/manifest.json"
+LOOP_CONTRACT_SUFFIXES = frozenset({".json", ".yaml", ".yml"})
 TOKENS = {
     "{{PROJECT_NAME}}": "project_name",
     "{{PACKAGE_NAME}}": "package_name",
@@ -108,6 +116,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Add a regulatory governance overlay; repeatable",
     )
     parser.add_argument(
+        "--loop",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help=(
+            "Include the opt-in Evidence-Gated Engineering Loop layer (vendored contract schemas "
+            "and validators); defaults to the previous render's selection, otherwise disabled"
+        ),
+    )
+    parser.add_argument(
         "--merge", action="store_true", help="Upgrade without replacing custom files"
     )
     parser.add_argument(
@@ -123,6 +140,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--check cannot be combined with --dry-run, --merge, --git-init, or --lock")
     if args.check and (args.governance_profile != "none" or args.governance_overlay):
         parser.error("--check reads governance selection from .harness.json")
+    if args.check and args.loop is not None:
+        parser.error("--check reads the loop selection from .harness.json")
     if args.governance_profile == "none" and args.governance_overlay:
         parser.error("--governance-overlay requires a non-none --governance-profile")
     if len(args.governance_overlay) != len(set(args.governance_overlay)):
@@ -312,12 +331,27 @@ def _excluded(relative: Path, profile: str) -> bool:
     return False
 
 
+def is_loop_path(relative: Path) -> bool:
+    """Return whether a template path belongs to the opt-in loop layer."""
+    rendered = relative.as_posix()
+    return any(rendered == prefix or rendered.startswith(prefix + "/") for prefix in LOOP_PATHS)
+
+
+def has_loop_contracts(target: Path) -> bool:
+    """Return whether a project holds loop contracts under .loop/contracts/."""
+    contracts = target / ".loop" / "contracts"
+    return contracts.is_dir() and any(
+        path.is_file() and path.suffix in LOOP_CONTRACT_SUFFIXES for path in contracts.rglob("*")
+    )
+
+
 def rendered_profile(
     root: Path,
     profile: str,
     values: dict[str, str],
     governance_profile: str,
     governance_overlays: list[str],
+    loop: bool = False,
 ) -> dict[Path, RenderedFile]:
     """Compose technical and governance profile inputs into one standalone project."""
     files: dict[Path, RenderedFile] = {}
@@ -329,6 +363,8 @@ def rendered_profile(
         if "__pycache__" in relative.parts or _excluded(relative, profile):
             continue
         if governance_profile == "none" and relative.parts[0] == "governance":
+            continue
+        if not loop and is_loop_path(relative):
             continue
         files[destination_for(relative, values)] = _render_source(source, values)
 
@@ -373,6 +409,20 @@ def manifest_files(manifest: dict[str, Any]) -> dict[str, dict[str, Any]]:
         for key, value in files.items()
         if isinstance(key, str) and isinstance(value, dict)
     }
+
+
+def resolve_loop(requested: bool | None, manifest: dict[str, Any]) -> bool:
+    """Select the loop layer: explicit flag, then the previous render, otherwise disabled.
+
+    Manifests written before the layer became opt-in carry no ``loop`` key; a project whose
+    previous render tracked the vendored bundle keeps the layer so an upgrade never drops it.
+    """
+    if requested is not None:
+        return requested
+    recorded = manifest.get("loop")
+    if isinstance(recorded, bool):
+        return recorded
+    return LOOP_MARKER in manifest_files(manifest)
 
 
 def plan_changes(
@@ -454,6 +504,7 @@ def build_manifest(
     profile: str,
     governance_profile: str,
     governance_overlays: list[str],
+    loop: bool,
     python_version: str,
     changes: list[PlannedChange],
     previous: dict[str, dict[str, Any]],
@@ -477,6 +528,7 @@ def build_manifest(
         "governanceProfile": governance_profile,
         "governanceOverlays": governance_overlays,
         "governanceCatalogVersion": GOVERNANCE_CATALOG_VERSION,
+        "loop": loop,
         "python": python_version,
         "sourceCommit": commit,
         "sourceDirty": dirty,
@@ -593,6 +645,14 @@ def check_target(target: Path) -> list[str]:
         governance_manifest = target / "governance" / "governance-profile.json"
         if not governance_manifest.is_file() or governance_manifest.is_symlink():
             errors.append("enabled governance profile is missing governance-profile.json")
+    loop = manifest.get("loop")
+    if not isinstance(loop, bool):
+        errors.append(f"invalid loop selection: {loop!r}")
+    elif not loop and has_loop_contracts(target):
+        errors.append(
+            "loop contracts exist under .loop/contracts/ but the loop layer is disabled; "
+            "re-render with --loop"
+        )
 
     for relative, record in sorted(manifest_files(manifest).items()):
         path = target / relative
@@ -690,12 +750,14 @@ def main(argv: list[str] | None = None) -> int:
 
     previous_manifest = load_manifest(target)
     previous_files = manifest_files(previous_manifest)
+    loop = resolve_loop(args.loop, previous_manifest)
     rendered = rendered_profile(
         root,
         args.profile,
         values,
         args.governance_profile,
         args.governance_overlay,
+        loop,
     )
     changes = plan_changes(rendered, target, previous_files)
     manifest = build_manifest(
@@ -703,6 +765,7 @@ def main(argv: list[str] | None = None) -> int:
         profile=args.profile,
         governance_profile=args.governance_profile,
         governance_overlays=args.governance_overlay,
+        loop=loop,
         python_version=python_version,
         changes=changes,
         previous=previous_files,
@@ -735,9 +798,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.governance_overlay:
         governance_label += f" + {', '.join(args.governance_overlay)}"
     print(
-        f"Harness {HARNESS_VERSION} ({args.profile}; governance: {governance_label}) "
-        f"rendered in {target}"
+        f"Harness {HARNESS_VERSION} ({args.profile}; governance: {governance_label}; "
+        f"loop: {'on' if loop else 'off'}) rendered in {target}"
     )
+    orphaned = sorted(name for name in previous_files if not loop and is_loop_path(Path(name)))
+    if orphaned:
+        print("Loop layer disabled; previously generated loop files were left in place:")
+        for name in orphaned:
+            print(f"  - {name}")
     if conflicts:
         print("Review generated conflict files:")
         for conflict in conflicts:
