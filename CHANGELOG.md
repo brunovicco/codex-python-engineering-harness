@@ -21,6 +21,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- The isolated lint in the `test` job now reads the ruff version from `uv.lock` instead of a
+  hard-coded `ruff==0.15.20`, so it can never drift from the version the repository quality gate
+  uses, and Dependabot updates both together. Its rule set is pinned to `E4,E7,E9,F`, the set it
+  enforced before: `--isolated` ignores project config, and ruff 0.17 expanded its default
+  selection from 59 to 407 rules, which would otherwise change the check under every update.
 - Updated the harness CI actions: `actions/checkout` v7.0.1, `actions/setup-python` v7.1.0,
   `astral-sh/setup-uv` v10.3.3, and `actions/upload-artifact` v7.0.2, all pinned to full commit
   SHAs verified against their release tags. The only inputs used (`python-version`, `version`)

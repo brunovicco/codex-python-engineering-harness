@@ -807,6 +807,14 @@ class HookTests(unittest.TestCase):
 class DistributionTests(unittest.TestCase):
     """Keep duplicated security code and machine-readable files valid."""
 
+    def test_isolated_ci_lint_uses_locked_ruff_and_explicit_rules(self) -> None:
+        """Keep the isolated lint on the locked ruff with a version-independent rule set."""
+        workflow = (ROOT / ".github/workflows/harness-quality.yml").read_text(encoding="utf-8")
+        self.assertNotRegex(workflow, r"ruff==\d")
+        self.assertIn("ruff==${ruff_version}", workflow)
+        self.assertIn('lock["package"]', workflow)
+        self.assertIn("--isolated --select E4,E7,E9,F", workflow)
+
     def test_workflow_actions_are_pinned_to_full_commit_shas(self) -> None:
         """Pin every action, including the workflows distributed to generated projects."""
         workflows = sorted(ROOT.glob(".github/workflows/*.yml"))

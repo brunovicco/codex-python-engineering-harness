@@ -67,9 +67,14 @@ jobs:
           plugins/python-engineering-harness/scripts
 
       - name: Lint harness distribution
-        run: >-
-          uvx --from ruff==0.15.20 ruff check --isolated bootstrap.py tests
-          template/.codex/hooks template/scripts plugins/python-engineering-harness/scripts
+        # Lint with the ruff version locked in uv.lock, so this isolated check and the
+        # repository quality gate never disagree and Dependabot updates both together.
+        # --isolated ignores project config, so pin the rule set explicitly: ruff's default
+        # selection grew from 59 to 407 rules in 0.17 and would change under every bump.
+        run: |
+          ruff_version="$(python -c 'import tomllib; lock = tomllib.load(open("uv.lock", "rb")); print(next(p["version"] for p in lock["package"] if p["name"] == "ruff"))')"
+          uvx --from "ruff==${ruff_version}" ruff check --isolated --select E4,E7,E9,F bootstrap.py tests \
+            template/.codex/hooks template/scripts plugins/python-engineering-harness/scripts
 
       - name: Reject whitespace errors
         run: git diff --check
