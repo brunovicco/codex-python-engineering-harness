@@ -987,6 +987,16 @@ class DistributionTests(unittest.TestCase):
         self.assertTrue(config["features"]["hooks"])
         self.assertNotIn("hooks", config)
 
+    def test_template_pins_the_workspace_write_sandbox(self) -> None:
+        """Pin OS-level enforcement so a laxer user default cannot loosen a trusted project."""
+        with (ROOT / "template/.codex/config.toml").open("rb") as handle:
+            config = tomllib.load(handle)
+        self.assertEqual(config["sandbox_mode"], "workspace-write")
+        self.assertEqual(config["approval_policy"], "on-request")
+        self.assertIs(config["sandbox_workspace_write"]["network_access"], False)
+        self.assertNotIn("writable_roots", config["sandbox_workspace_write"])
+        self.assertNotIn("default_permissions", config)
+
     def test_plugin_hooks_resolve_scripts_through_plugin_root(self) -> None:
         content = (ROOT / "plugins/python-engineering-harness/hooks/hooks.json").read_text(
             encoding="utf-8"
@@ -1131,6 +1141,76 @@ class SensitiveFileReadProtectionTests(unittest.TestCase):
         self.assertTrue(patterns.matches_denied_path(".env"))
         self.assertFalse(patterns.matches_denied_path(".env.example"))
         self.assertTrue(patterns.references_sensitive_token("~/.ssh/id_rsa"))
+
+
+class AdversarialHookCorpusTests(unittest.TestCase):
+    """Run the shared adversarial corpus against every distributed copy of the Bash hook."""
+
+    CORPUS = ROOT / "tests" / "adversarial" / "bash_hook_corpus.json"
+    KINDS: ClassVar[dict[str, str]] = {
+        "regression": "deny",
+        "evasion": "deny",
+        "benign": "allow",
+        "known-bypass": "allow",
+    }
+
+    def load_cases(self) -> list[dict[str, str]]:
+        document = json.loads(self.CORPUS.read_text(encoding="utf-8"))
+        self.assertEqual(document["version"], 1)
+        cases: list[dict[str, str]] = document["cases"]
+        return cases
+
+    def test_corpus_is_well_formed(self) -> None:
+        cases = self.load_cases()
+        identifiers = [case["id"] for case in cases]
+        self.assertEqual(len(identifiers), len(set(identifiers)), "case ids must be unique")
+        for case in cases:
+            with self.subTest(case=case["id"]):
+                self.assertIn(case["kind"], self.KINDS)
+                self.assertEqual(case["expect"], self.KINDS[case["kind"]])
+                self.assertTrue(case["command"].strip())
+                if case["kind"] == "known-bypass":
+                    self.assertTrue(case.get("mitigation", "").strip(), "name the covering control")
+                else:
+                    self.assertNotIn("mitigation", case)
+        for kind in self.KINDS:
+            with self.subTest(kind=kind):
+                self.assertTrue(any(case["kind"] == kind for case in cases))
+
+    def test_hook_copies_match_the_corpus(self) -> None:
+        """Deny cases are blocked, benign cases pass, and known bypasses stay documented.
+
+        A known bypass that starts being blocked fails here on purpose: promote it to an
+        ``evasion`` case so the stronger guarantee is protected from regression.
+        """
+        cases = self.load_cases()
+        for hook in (HOOKS / "validate_bash.py", PLUGIN_SCRIPTS / "validate_bash.py"):
+            for case in cases:
+                with (
+                    self.subTest(hook=hook.relative_to(ROOT).as_posix(), case=case["id"]),
+                    tempfile.TemporaryDirectory() as directory,
+                ):
+                    payload = {
+                        "cwd": directory,
+                        "tool_name": "Bash",
+                        "tool_input": {"command": case["command"]},
+                    }
+                    result = subprocess.run(
+                        [sys.executable, str(hook)],
+                        cwd=directory,
+                        input=json.dumps(payload),
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                        timeout=10,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    if case["expect"] == "deny":
+                        self.assertTrue(result.stdout, "the hook allowed a command it must deny")
+                        decision = json.loads(result.stdout)["hookSpecificOutput"]
+                        self.assertEqual(decision["permissionDecision"], "deny")
+                    else:
+                        self.assertEqual(result.stdout, "", f"unexpected decision: {result.stdout}")
 
 
 class LoopFoundationTests(unittest.TestCase):

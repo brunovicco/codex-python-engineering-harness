@@ -29,6 +29,7 @@
     {"id": "parity-exceptions", "path": "parity-exceptions.json"},
     {"id": "tests-harness", "path": "tests/test_harness.py"},
     {"id": "tests-loop-vendor", "path": "tests/test_loop_schema_vendor.py"},
+    {"id": "tests-adversarial-bash-corpus", "path": "tests/adversarial/bash_hook_corpus.json"},
     {"id": "ci-harness-quality", "path": ".github/workflows/harness-quality.yml"},
     {"id": "ci-loop-self-evaluation", "path": ".github/workflows/loop-self-evaluation.yml"},
     {"id": "governance-readme", "path": "governance/README.md"},

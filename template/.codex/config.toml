@@ -1,4 +1,15 @@
 # Checked-in project settings load only after the repository is trusted.
 # Hooks live exclusively in the sibling hooks.json at this configuration layer.
+
+# OS-level enforcement for model-generated commands: writes stay inside the workspace (with .git,
+# .codex, and .agents kept read-only) and commands have no network access. Codex asks before any
+# step that needs more. Hooks remain defense in depth on top of this boundary; see
+# docs/DEVELOPMENT.md before loosening either setting.
+sandbox_mode = "workspace-write"
+approval_policy = "on-request"
+
+[sandbox_workspace_write]
+network_access = false
+
 [features]
 hooks = true

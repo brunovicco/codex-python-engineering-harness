@@ -92,6 +92,12 @@ Trust the repository before expecting `.codex/config.toml` and `.codex/hooks.jso
 `/hooks` in Codex to review and trust new or changed hooks. Generated projects need no personal
 Codex configuration and no credentials to build or test.
 
+The trusted `.codex/config.toml` pins the `workspace-write` sandbox with network access disabled
+and `approval_policy = "on-request"`, so OS-level isolation, not the hooks, is the enforcement
+boundary for commands. That sandbox does not restrict reads; the hooks guard secrets and are tested
+against an adversarial corpus (`tests/adversarial/bash_hook_corpus.json`) that also records the
+evasions they cannot catch. See the generated `docs/DEVELOPMENT.md`.
+
 ## Repository layout
 
 - `template/`: service-compatible base copied into generated projects.

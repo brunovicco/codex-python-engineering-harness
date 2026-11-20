@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Block destructive or credential-exposing shell commands."""
 
+import fnmatch
 import re
 import shlex
 
@@ -15,7 +16,7 @@ RULES: tuple[tuple[re.Pattern[str], str], ...] = (
         "git clean -fd is destructive",
     ),
     (
-        re.compile(r"\bgit\s+push\b[^\n]*(?:--force|-f\b)", re.IGNORECASE),
+        re.compile(r"\bgit\s+push\b[^\n]*(?:--force|-f\b|\s\+\S)", re.IGNORECASE),
         "force push is not allowed",
     ),
     (
@@ -50,7 +51,7 @@ RULES: tuple[tuple[re.Pattern[str], str], ...] = (
         "global Docker pruning is blocked",
     ),
     (
-        re.compile(r"\b(?:mkfs|fdisk|dd\s+if=)\b", re.IGNORECASE),
+        re.compile(r"\b(?:mkfs|fdisk)\b|\bdd\s+if=", re.IGNORECASE),
         "low-level disk operations are blocked",
     ),
 )
@@ -69,6 +70,116 @@ def shell_tokens(command: str) -> list[str]:
     lexer.whitespace_split = True
     lexer.commenters = ""
     return list(lexer)
+
+
+def _literal_is_sensitive(value: str) -> bool:
+    """Match one concrete word against the shared sensitive-path denylist."""
+    return references_sensitive_token(value)
+
+
+SHELL_INTERPRETERS = frozenset({"bash", "sh", "zsh", "dash", "ksh"})
+MAX_NESTING = 3
+MAX_BRACE_VARIANTS = 64
+GLOB_CHARACTERS = frozenset("*?[")
+BRACE_GROUP = re.compile(r"\{([^{}]*,[^{}]*)\}")
+# Concrete names a shell glob could expand to; kept aligned with the sensitive-path denylist.
+SENSITIVE_NAMES = (
+    ".env",
+    ".env.local",
+    ".env.development",
+    ".env.production",
+    ".env.staging",
+    ".env.test",
+    ".ssh",
+    ".aws",
+    "id_rsa",
+    "id_ed25519",
+    "terraform.tfstate",
+    "secrets",
+    "credentials",
+)
+
+
+def expand_braces(token: str) -> list[str]:
+    """Expand non-nested shell brace groups such as ``.{e,x}nv`` into concrete words."""
+    variants = [token]
+    while True:
+        expanded: list[str] = []
+        changed = False
+        for variant in variants:
+            match = BRACE_GROUP.search(variant)
+            if match is None:
+                expanded.append(variant)
+                continue
+            changed = True
+            prefix, suffix = variant[: match.start()], variant[match.end() :]
+            expanded.extend(prefix + option + suffix for option in match.group(1).split(","))
+        variants = expanded[:MAX_BRACE_VARIANTS]
+        if not changed or len(expanded) >= MAX_BRACE_VARIANTS:
+            return variants
+
+
+def glob_matches_sensitive_name(token: str) -> bool:
+    """Return whether a glob component could expand to a sensitive file name.
+
+    Shell semantics apply: a pattern that does not start with a dot never matches a dotfile, and
+    patterns with fewer than two literal characters (``*``, ``?*``) are ignored as too broad.
+    """
+    for component in token.replace("\\", "/").split("/"):
+        if GLOB_CHARACTERS.isdisjoint(component):
+            continue
+        literals = sum(character not in "*?[]!^" for character in component)
+        if literals < 2:
+            continue
+        for name in SENSITIVE_NAMES:
+            if name.startswith(".") and not component.startswith("."):
+                continue
+            if fnmatch.fnmatchcase(name.lower(), component.lower()):
+                return True
+    return False
+
+
+def token_is_sensitive(token: str) -> bool:
+    """Check a word, its brace expansions, and any glob for sensitive targets."""
+    return any(
+        _literal_is_sensitive(variant) or glob_matches_sensitive_name(variant)
+        for variant in expand_braces(token)
+    )
+
+
+def command_views(command: str, depth: int = 0) -> list[str]:
+    """Return the raw command, its unquoted form, and nested ``sh -c``/``eval`` payloads.
+
+    Quote concatenation (``--ha""rd``) and interpreter wrappers (``bash -c '...'``) otherwise hide
+    a command from pattern rules that read the raw text.
+    """
+    try:
+        tokens = shell_tokens(command)
+    except ValueError:
+        return [command]
+    views = [command, " ".join(tokens)]
+    if depth >= MAX_NESTING:
+        return views
+    for index, token in enumerate(tokens):
+        name = token.rsplit("/", maxsplit=1)[-1]
+        if name in SHELL_INTERPRETERS:
+            cursor = index + 1
+            while cursor < len(tokens) and tokens[cursor].startswith("-"):
+                option = tokens[cursor]
+                if not option.startswith("--") and "c" in option[1:]:
+                    if cursor + 1 < len(tokens):
+                        views.extend(command_views(tokens[cursor + 1], depth + 1))
+                    break
+                cursor += 1
+        elif name == "eval":
+            payload: list[str] = []
+            for word in tokens[index + 1 :]:
+                if word in SHELL_SEPARATORS:
+                    break
+                payload.append(word)
+            if payload:
+                views.extend(command_views(" ".join(payload), depth + 1))
+    return views
 
 
 def jq_filter_indexes(tokens: list[str]) -> set[int]:
@@ -110,9 +221,7 @@ def references_sensitive_path(command: str) -> bool:
     tokens = shell_tokens(command)
     ignored = jq_filter_indexes(tokens)
     return any(
-        references_sensitive_token(token)
-        for index, token in enumerate(tokens)
-        if index not in ignored
+        token_is_sensitive(token) for index, token in enumerate(tokens) if index not in ignored
     )
 
 
@@ -124,7 +233,8 @@ def main() -> None:
     if not isinstance(command, str):
         return
 
-    if references_sensitive_path(command):
+    views = command_views(command)
+    if any(references_sensitive_path(view) for view in views):
         log_event(payload, "validate_bash", "sensitive-file", "deny")
         deny_tool(
             "Blocked command: shell commands may not reference sensitive files. "
@@ -133,7 +243,7 @@ def main() -> None:
         return
 
     for pattern, reason in RULES:
-        if pattern.search(command):
+        if any(pattern.search(view) for view in views):
             log_event(payload, "validate_bash", "destructive-command", "deny")
             deny_tool(f"Blocked command: {reason}.")
             return
