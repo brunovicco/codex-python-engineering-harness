@@ -8,6 +8,31 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+### Security
+
+- Refreshed vulnerable development-only transitive dependencies in `uv.lock`, which made the
+  repository `pip-audit` check (and therefore the `repository-quality` job on `main`) fail:
+  `certifi` 2026.10.23, `filelock` 4.2.12, `msgpack` 1.2.4, `pip` 26.3, and `urllib3` 2.8.0. All
+  are pulled in by `pip-audit`; no runtime dependency of generated projects changes.
+- Pinned `actions/checkout` to a full commit SHA in every distributed workflow (`template/` and
+  `profiles/`), and updated the distributed `astral-sh/setup-uv` pin from v8.1.0 to v10.3.3.
+  Generated projects previously received an outdated `setup-uv` and, where a tag was used, a
+  mutable action reference.
+
+### Changed
+
+- Updated the harness CI actions: `actions/checkout` v7.0.1, `actions/setup-python` v7.1.0,
+  `astral-sh/setup-uv` v10.3.3, and `actions/upload-artifact` v7.0.2, all pinned to full commit
+  SHAs verified against their release tags. The only inputs used (`python-version`, `version`)
+  are unchanged across these major versions. Supersedes the open Dependabot pull requests.
+- `.github/dependabot.yml` is now identical in shape across the sibling harnesses: weekly grouped
+  updates for GitHub Actions in the repository *and* in the distributed `template/` and `profiles/`
+  workflows, for the `uv` lockfile (the former `pip` ecosystem could not read `uv.lock`, so
+  lockfile vulnerabilities never produced update PRs), and for the template container images.
+- Added regression tests that require every workflow action, including distributed ones, to be
+  pinned to a full commit SHA with a version comment, and that keep Dependabot pointed at every
+  distributed workflow directory.
+
 ## [1.3.0] - 2026-07-20
 
 ### Added

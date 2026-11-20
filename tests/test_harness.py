@@ -807,6 +807,35 @@ class HookTests(unittest.TestCase):
 class DistributionTests(unittest.TestCase):
     """Keep duplicated security code and machine-readable files valid."""
 
+    def test_workflow_actions_are_pinned_to_full_commit_shas(self) -> None:
+        """Pin every action, including the workflows distributed to generated projects."""
+        workflows = sorted(ROOT.glob(".github/workflows/*.yml"))
+        workflows += sorted(ROOT.glob("template/.github/workflows/*.yml"))
+        workflows += sorted(ROOT.glob("profiles/*/.github/workflows/*.yml"))
+        self.assertTrue(workflows)
+        uses = re.compile(r"^\s*(?:-\s*)?uses:\s*(\S+)(.*)$")
+        for path in workflows:
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                match = uses.match(line)
+                if match is None or match.group(1).startswith("./"):
+                    continue
+                with self.subTest(path=path.relative_to(ROOT).as_posix(), line=number):
+                    self.assertRegex(match.group(1), r"^[\w.-]+/[\w./-]+@[0-9a-f]{40}$")
+                    self.assertRegex(match.group(2), r"#\s*v\d+(?:\.\d+){0,2}\b")
+
+    def test_dependabot_covers_distributed_workflows_and_lockfile(self) -> None:
+        """Keep update automation pointed at every pinned surface the harness ships."""
+        config = (ROOT / ".github/dependabot.yml").read_text(encoding="utf-8")
+        for ecosystem in ("github-actions", "uv", "docker"):
+            with self.subTest(ecosystem=ecosystem):
+                self.assertIn(f"package-ecosystem: {ecosystem}\n", config)
+        for workflow_dir in sorted(ROOT.glob("*/.github/workflows")) + sorted(
+            ROOT.glob("profiles/*/.github/workflows")
+        ):
+            owner = "/" + workflow_dir.parent.parent.relative_to(ROOT).as_posix()
+            with self.subTest(directory=owner):
+                self.assertIn(f'"{owner}"', config)
+
     def test_repository_quality_gate_is_enforced_in_ci(self) -> None:
         """Keep the complete local gate represented in the required workflow."""
         workflow = (ROOT / ".github/workflows/harness-quality.yml").read_text(encoding="utf-8")
