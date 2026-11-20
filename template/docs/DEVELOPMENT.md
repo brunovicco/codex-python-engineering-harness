@@ -39,6 +39,16 @@ be excluded from the build context.
 
 Copy `.env.example` only when the application supports local dotenv loading. Never commit `.env` or real credentials.
 
+## Agent sandbox
+
+`.codex/config.toml` pins `sandbox_mode = "workspace-write"`, `network_access = false`, and
+`approval_policy = "on-request"`. Commands write only inside the workspace (`.git`, `.codex`, and
+`.agents` stay read-only), have no network access, and Codex asks before any step that needs more,
+such as `uv sync` downloading packages. This sandbox does not restrict reads, so the hooks are what
+keep commands away from `.env` and other secrets. A permission profile (beta) that denies
+`**/*.env` adds an OS-level read barrier, but it replaces `sandbox_mode` rather than combining with
+it. Loosen these settings only through a reviewed decision.
+
 ## Codex
 
 - Run `/status` to inspect the active project and configuration.
