@@ -44,6 +44,34 @@ class LoopSchemaVendorIntegrityTests(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("sha256 mismatch", result.stderr)
 
+    def _tampered_project(self, directory: str) -> Path:
+        project = Path(directory)
+        target = project / "scripts" / "_vendor_loop_schemas"
+        target.parent.mkdir(parents=True)
+        shutil.copytree(VENDOR, target)
+        return project
+
+    def test_schema_tampering_is_detected(self) -> None:
+        """The canonical JSON Schemas are covered by the manifest, not only Python sources."""
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._tampered_project(directory)
+            schema = project / "scripts/_vendor_loop_schemas/schemas/contract.schema.json"
+            schema.write_text(schema.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+
+            result = self.run_validator(project)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("schemas/contract.schema.json: sha256 mismatch", result.stderr)
+
+    def test_undeclared_module_is_rejected(self) -> None:
+        """A planted module inside the vendored package must fail the gate."""
+        with tempfile.TemporaryDirectory() as directory:
+            project = self._tampered_project(directory)
+            (project / "scripts/_vendor_loop_schemas/json.py").write_text("", encoding="utf-8")
+
+            result = self.run_validator(project)
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("json.py: file is not declared in manifest.json", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

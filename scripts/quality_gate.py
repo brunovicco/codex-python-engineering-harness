@@ -102,6 +102,10 @@ def main() -> int:
                 ]
                 for governance_overlay in governance_overlays:
                     render.extend(("--governance-overlay", governance_overlay))
+                if governance_profile == "agentic":
+                    # Exercise the opt-in loop layer with the agentic profile it serves;
+                    # the "none" case covers the default render without it.
+                    render.append("--loop")
                 if not run(render):
                     failures.append(f"render {label}")
                     continue
@@ -115,11 +119,13 @@ def main() -> int:
                     ]
                 ):
                     failures.append(f"check {label}")
-                validators = (
+                validators: tuple[str, ...] = (
                     "validate_architecture.py",
                     "validate_mcp_config.py",
                     "governance_gate.py",
                 )
+                if governance_profile == "agentic":
+                    validators += ("validate_loop_schema_vendor.py", "validate_loop_contracts.py")
                 for validator in validators:
                     if not run([sys.executable, f"scripts/{validator}"], cwd=target):
                         failures.append(f"{validator} {label}")

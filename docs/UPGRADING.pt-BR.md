@@ -32,6 +32,15 @@ Projetos gerados são snapshots e nunca são modificados automaticamente.
 
 7. Revise e confie (trust) nos hooks do Codex alterados antes de usá-los.
 
+## Seleção da camada de loop
+
+Desde o gerador do harness 1.3.0, a camada de Evidence-Gated Engineering Loop é opcional e fica
+registrada como `loop` no `.harness.json`. O `--merge` mantém a escolha anterior: um projeto cuja
+renderização anterior rastreava `scripts/_vendor_loop_schemas/` mantém a camada e recebe o bundle
+v0.3.0 do `engineering-loop-schemas`. Use `--loop` ou `--no-loop` para mudar. Desabilitar mantém
+os arquivos gerados anteriormente e os lista; remova-os manualmente quando nenhum contrato em
+`.loop/contracts/` depender deles. Veja `LOOPS.pt-BR.md`.
+
 ## Atualizações do plugin
 
 Releases do plugin são independentes das releases do gerador. Atualize a instalação do

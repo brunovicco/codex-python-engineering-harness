@@ -10,6 +10,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Security
 
+- Re-vendored the loop-contract validator from `engineering-loop-schemas` v0.3.0
+  (`5340d491b46f4fabc967c81bb3e5204104b6b5d8`). The previously vendored v0.1.2 validator accepted
+  contracts with unknown properties, arbitrary `version` values, and report-only contracts with
+  `human_review.required: false`; v0.3.0 enforces the canonical JSON Schema and rejects all three.
+  Valid existing contracts remain valid (contract wire format stays `1.0.0`).
+- `validate_loop_schema_vendor.py` now verifies manifest format `2.0.0`: the size and SHA-256 of
+  every Python source and of the four canonical JSON Schemas, every declared import adaptation,
+  and the absence of any file the manifest does not declare (for example a planted module).
 - Refreshed vulnerable development-only transitive dependencies in `uv.lock`, which made the
   repository `pip-audit` check (and therefore the `repository-quality` job on `main`) fail:
   `certifi` 2026.10.23, `filelock` 4.2.12, `msgpack` 1.2.4, `pip` 26.3, and `urllib3` 2.8.0. All
@@ -21,6 +29,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Changed
 
+- **Generated-project change; harness generator 1.3.0.** The Evidence-Gated Engineering Loop layer
+  (`scripts/_vendor_loop_schemas/`, `validate_loop_contracts.py`, `validate_loop_schema_vendor.py`
+  and their quality-gate checks) is now opt-in through `bootstrap.py --loop` instead of being
+  rendered into every project, where it was a no-op unless a human added a contract. The selection
+  is recorded as `loop` in `.harness.json`; `--merge` keeps it, and a project rendered before this
+  change that tracks the vendored bundle keeps the layer. `--no-loop` disables it and lists the
+  files left in place. A contract under `.loop/contracts/` without the layer fails both the
+  generated quality gate and `bootstrap.py --check`. See `docs/LOOPS.md` and `docs/UPGRADING.md`.
+- The repository quality gate, the self-evaluation workflow, and the CI generated-profiles matrix
+  render the loop layer (with the agentic governance profile, and on every profile and Python
+  version, respectively), while the `none` case keeps covering the default render.
+- Repository mypy treats the vendored bundle as third-party code (`ignore_errors` for
+  `_vendor_loop_schemas.*`): mypy 2.4 reports redundant casts in it that belong upstream, and the
+  bundle is integrity-verified and must not be edited locally.
 - The isolated lint in the `test` job now reads the ruff version from `uv.lock` instead of a
   hard-coded `ruff==0.15.20`, so it can never drift from the version the repository quality gate
   uses, and Dependabot updates both together. Its rule set is pinned to `E4,E7,E9,F`, the set it

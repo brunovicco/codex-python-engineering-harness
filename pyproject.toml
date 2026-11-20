@@ -57,6 +57,14 @@ disallow_untyped_decorators = false
 module = ["yaml"]
 ignore_missing_imports = true
 
+# The vendored loop-schemas bundle is third-party code: it is type-checked in its canonical
+# repository, verified byte-for-byte by validate_loop_schema_vendor.py, and must never be edited
+# here. Newer mypy releases flag stylistic issues in it (redundant casts) that are fixed upstream
+# and re-rendered, not patched locally.
+[[tool.mypy.overrides]]
+module = ["_vendor_loop_schemas.*"]
+ignore_errors = true
+
 [tool.bandit]
 exclude_dirs = ["tests", "template/tests"]
 skips = []

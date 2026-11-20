@@ -30,6 +30,15 @@ Generated projects are snapshots and are never modified automatically.
 
 7. Review and trust changed Codex hooks before using them.
 
+## Loop layer selection
+
+Since harness generator 1.3.0 the Evidence-Gated Engineering Loop layer is opt-in and recorded as
+`loop` in `.harness.json`. `--merge` keeps the previous selection: a project whose earlier render
+tracked `scripts/_vendor_loop_schemas/` keeps the layer and receives the `engineering-loop-schemas`
+v0.3.0 bundle. Pass `--loop` or `--no-loop` to change it. Disabling leaves the previously generated
+files in place and lists them; remove them manually once no contract under `.loop/contracts/`
+depends on them. See `LOOPS.md`.
+
 ## Plugin upgrades
 
 Plugin releases are independent from generator releases. Update the marketplace installation,

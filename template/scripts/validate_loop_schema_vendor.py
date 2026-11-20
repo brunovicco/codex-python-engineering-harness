@@ -13,7 +13,22 @@ COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SEMVER_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 EXPECTED_REPOSITORY = "brunovicco/engineering-loop-schemas"
-REQUIRED_FILES = {"__init__.py", "models.py", "validate_contract.py"}
+MANIFEST_VERSION = "2.0.0"
+SOURCE_FILES = (
+    "__init__.py",
+    "_stdlib_jsonschema.py",
+    "models.py",
+    "schema_resources.py",
+    "validate_contract.py",
+)
+SCHEMA_FILES = (
+    "schemas/builder-result.schema.json",
+    "schemas/contract.schema.json",
+    "schemas/evidence.schema.json",
+    "schemas/verdict.schema.json",
+)
+REQUIRED_FILES = frozenset((*SOURCE_FILES, *SCHEMA_FILES))
+VENDORED_MODULES = ("_stdlib_jsonschema", "models", "schema_resources")
 
 
 def sha256_file(path: Path) -> str:
@@ -34,6 +49,61 @@ def load_manifest(vendor_dir: Path) -> dict[str, Any]:
     return cast(dict[str, Any], document)
 
 
+def unexpected_files(vendor_dir: Path) -> list[str]:
+    """Reject files the manifest does not account for, such as planted modules."""
+    errors: list[str] = []
+    for path in sorted(vendor_dir.rglob("*")):
+        relative = path.relative_to(vendor_dir)
+        if "__pycache__" in relative.parts or path.is_dir():
+            continue
+        name = relative.as_posix()
+        if path.is_symlink():
+            errors.append(f"{name}: symbolic links are not allowed in the bundle")
+        elif name != "manifest.json" and name not in REQUIRED_FILES:
+            errors.append(f"{name}: file is not declared in manifest.json")
+    return errors
+
+
+def adaptation_errors(vendor_dir: Path, adaptations: object) -> list[str]:
+    """Verify every package-import adaptation recorded by the bundle renderer."""
+    if not isinstance(adaptations, list) or not adaptations:
+        return ["adaptations must be a non-empty list"]
+    errors: list[str] = []
+    expected = {
+        (
+            f"from loop_schemas.{module} import",
+            f"from _vendor_loop_schemas.{module} import",
+        )
+        for module in VENDORED_MODULES
+    }
+    recorded: set[tuple[str, str]] = set()
+    for item in adaptations:
+        if not isinstance(item, dict) or item.get("file") != "validate_contract.py":
+            errors.append(f"unexpected adaptation entry: {item!r}")
+            continue
+        original, adapted = item.get("from"), item.get("to")
+        if not isinstance(original, str) or not isinstance(adapted, str):
+            errors.append(f"adaptation entry must map strings: {item!r}")
+            continue
+        recorded.add((original, adapted))
+    for original, adapted in sorted(expected):
+        if not any(
+            entry_from.startswith(original) and entry_to.startswith(adapted)
+            for entry_from, entry_to in recorded
+        ):
+            errors.append(f"validate_contract.py: missing adaptation {original!r} -> {adapted!r}")
+
+    validator = vendor_dir / "validate_contract.py"
+    if validator.is_file():
+        text = validator.read_text(encoding="utf-8")
+        if "from loop_schemas" in text or "import loop_schemas" in text:
+            errors.append("validate_contract.py: source package import was not adapted")
+        for _, adapted in sorted(expected):
+            if adapted not in text:
+                errors.append(f"validate_contract.py: vendored import is missing: {adapted!r}")
+    return errors
+
+
 def validate_manifest(vendor_dir: Path) -> list[str]:
     """Return all integrity and provenance errors."""
     errors: list[str] = []
@@ -42,7 +112,7 @@ def validate_manifest(vendor_dir: Path) -> list[str]:
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         return [f"could not load manifest.json: {exc}"]
 
-    if manifest.get("manifest_version") != "1.0.0":
+    if manifest.get("manifest_version") != MANIFEST_VERSION:
         errors.append(f"unsupported manifest_version: {manifest.get('manifest_version')!r}")
 
     source = manifest.get("source")
@@ -93,17 +163,10 @@ def validate_manifest(vendor_dir: Path) -> list[str]:
         if actual_size != expected_size:
             errors.append(f"{name}: size mismatch; expected {expected_size}, got {actual_size}")
 
-    validator = vendor_dir / "validate_contract.py"
-    if validator.is_file():
-        text = validator.read_text(encoding="utf-8")
-        adapted = "from _vendor_loop_schemas.models import Contract"
-        original = "from loop_schemas.models import Contract"
-        if adapted not in text:
-            errors.append("validate_contract.py: vendored package import is missing")
-        if original in text:
-            errors.append("validate_contract.py: source package import was not adapted")
+    errors.extend(unexpected_files(vendor_dir))
+    errors.extend(adaptation_errors(vendor_dir, manifest.get("adaptations")))
 
-    for name in ("models.py", "validate_contract.py"):
+    for name in SOURCE_FILES:
         path = vendor_dir / name
         if not path.is_file() or not isinstance(version, str) or not isinstance(commit, str):
             continue

@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/brunovicco/engineering-loop-schemas/main/schemas/contract.schema.json",
+  "title": "Evidence-Gated Engineering Loop Contract",
+  "description": "Declares what a loop run is allowed to touch, how it is triggered, what a baseline looks like, which hard gates must pass, and what a human must review before promotion. A contract never grants a builder the authority to certify its own result; only the hard gates referenced in acceptance.hard_gates, executed mechanically against the complete baseline and candidate OIDs recorded by trusted evidence, can do that.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "id",
+    "objective",
+    "trigger",
+    "selection",
+    "baseline",
+    "acceptance",
+    "budgets",
+    "scope",
+    "actions",
+    "human_review"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Contract wire-format version.",
+      "const": "1.0.0"
+    },
+    "id": {
+      "type": "string",
+      "description": "Stable, unique contract identifier (kebab-case).",
+      "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+    },
+    "objective": {
+      "type": "string",
+      "description": "One-paragraph, human-readable statement of what this loop is for.",
+      "minLength": 1
+    },
+    "trigger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["manual", "schedule", "event"]
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression, required when type is 'schedule'.",
+          "minLength": 1
+        },
+        "event": {
+          "type": "string",
+          "description": "Event name/source, required when type is 'event'.",
+          "minLength": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "type": { "const": "schedule" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["schedule"],
+            "not": { "required": ["event"] }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "event" } },
+            "required": ["type"]
+          },
+          "then": {
+            "required": ["event"],
+            "not": { "required": ["schedule"] }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "manual" } },
+            "required": ["type"]
+          },
+          "then": {
+            "not": { "required": ["schedule"] }
+          }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "manual" } },
+            "required": ["type"]
+          },
+          "then": {
+            "not": { "required": ["event"] }
+          }
+        }
+      ]
+    },
+    "selection": {
+      "type": "object",
+      "description": "How candidate work items are chosen for this loop run.",
+      "additionalProperties": false,
+      "required": ["strategy"],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "description": "Free-text selection strategy identifier, e.g. 'single-issue', 'quality-gate-failures'.",
+          "minLength": 1
+        },
+        "max_items": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "filters": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "description": "Commands that establish the baseline the candidate is measured against.",
+      "additionalProperties": false,
+      "required": ["commands"],
+      "properties": {
+        "commands": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "acceptance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hard_gates"],
+      "properties": {
+        "hard_gates": {
+          "type": "array",
+          "description": "Names of mechanical, script-verifiable gates that must pass. Every name must be a member of the supported hard-gate set enforced by validate_contract.py.",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_tokens"],
+      "properties": {
+        "max_tokens": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "max_cost_usd": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "max_wall_clock_minutes": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "max_commands": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "description": "Glob-based allow/deny lists constraining which paths a run may touch. allowlist and denylist must not overlap; denylist always wins where evaluated by tooling.",
+      "additionalProperties": false,
+      "required": ["allowlist", "denylist"],
+      "properties": {
+        "allowlist": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "denylist": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "denied"],
+      "properties": {
+        "allowed": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "denied": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "human_review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["required"],
+      "properties": {
+        "required": {
+          "type": "boolean",
+          "const": true,
+          "description": "Must be true for every contract while loop autonomy is 'report' (Phase 0-1)."
+        },
+        "reviewers": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    }
+  }
+}

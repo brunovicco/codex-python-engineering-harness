@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/brunovicco/engineering-loop-schemas/main/schemas/builder-result.schema.json",
+  "title": "Evidence-Gated Engineering Loop Builder Result",
+  "description": "What a builder (the agent that produces a candidate change) reports when it finishes. This document is informational only: 'self_reported.gates_believed_passing' is the builder's own opinion and MUST NOT be treated as certification. Only a verdict produced by grading a separate evidence document against the contract's hard gates can promote a candidate. A builder-result with no changed_files and no commits is a legitimate NO_OP report, not an error.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "run_id",
+    "contract_id",
+    "baseline_sha",
+    "candidate_sha",
+    "summary",
+    "changed_files",
+    "self_reported",
+    "usage",
+    "started_at",
+    "finished_at"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Builder-result wire-format version.",
+      "const": "1.0.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "contract_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseline_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$",
+      "description": "Equal to baseline_sha for a NO_OP result where nothing was committed."
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable, non-authoritative account of what the builder attempted and did.",
+      "minLength": 1
+    },
+    "changed_files": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "self_reported": {
+      "type": "object",
+      "description": "The builder's own, non-authoritative account. Never consumed as a pass/fail signal.",
+      "additionalProperties": false,
+      "required": ["gates_believed_passing", "confidence"],
+      "properties": {
+        "gates_believed_passing": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["low", "medium", "high"]
+        },
+        "open_questions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "tokens"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "tokens": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input", "output"],
+          "properties": {
+            "input": { "type": "integer", "minimum": 0 },
+            "output": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "estimated_cost_usd": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "finished_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

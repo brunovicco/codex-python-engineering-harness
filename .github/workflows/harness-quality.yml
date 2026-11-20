@@ -101,11 +101,13 @@ jobs:
           version: "0.11.28"
 
       - name: Render profile
+        # --loop renders the superset: the opt-in loop layer adds vendored code that must pass
+        # each generated profile's strict lint and quality gate on every supported Python.
         run: >-
           python3 bootstrap.py --name profile-${{ matrix.profile }}
           --package profile_${{ matrix.profile }} --target ../generated
           --profile ${{ matrix.profile }} --python ${{ matrix.python-version }}
-          --git-init --lock
+          --loop --git-init --lock
 
       - name: Check harness metadata and branch alignment
         run: python3 bootstrap.py --target ../generated --check
